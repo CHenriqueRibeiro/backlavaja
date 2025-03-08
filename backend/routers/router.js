@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
-// Importação dos routers
 const establishmentRouter = require('./establishment');
 const ownerRouter = require('./owner');
 const loginOwner = require('./authRouter');
+const serviceRouter = require('./servicesRouter');
 
-// Definindo os caminhos das rotas
-router.use('/auth', loginOwner);  // Rota de login no caminho '/auth'
+router.use('/services', serviceRouter); 
+router.use('/auth', loginOwner);
 router.use('/establishment', establishmentRouter);
-router.use("/owner", ownerRouter); // Rota para donos
+router.use("/owner", ownerRouter);
 
 module.exports = router;

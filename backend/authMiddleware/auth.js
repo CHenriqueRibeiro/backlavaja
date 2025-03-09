@@ -1,18 +1,23 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
-  const token = req.header("Authorization");
+  const token = req.header("Authorization")?.replace('Bearer ', '');
 
   if (!token) {
     return res.status(401).json({ msg: "Acesso negado. Token não fornecido." });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.owner = decoded.id;
-    next();
+    // Decodificando o token e extraindo o ownerId
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    req.user = decoded;  // O decoded agora terá o ownerId
+
+    console.log('Token decodificado:', decoded); // Log para ver o conteúdo do JWT
+
+    next(); // Passa para a próxima função/middleware
   } catch (error) {
-    res.status(400).json({ msg: "Token inválido" });
+    console.error('Erro ao verificar o token:', error);
+    res.status(400).json({ msg: "Token inválido", error: error.message });
   }
 };
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const serviceController = require('../controllers/serviceController');
-const authenticateToken = require('../authMiddleware/authenticateToken');
+const authenticateToken = require('../authMiddleware/auth');
 
 
 router.get('/establishment/:establishmentId', serviceController.getServicesByEstablishment);

@@ -5,10 +5,11 @@ const establishmentRouter = require('./establishment');
 const ownerRouter = require('./owner');
 const loginOwner = require('./authRouter');
 const serviceRouter = require('./servicesRouter');
+const authMiddleware = require('../authMiddleware/auth');
 
-router.use('/services', serviceRouter); 
-router.use('/auth', loginOwner);
-router.use('/establishment', establishmentRouter);
-router.use("/owner", ownerRouter);
+router.use("/services", authMiddleware, serviceRouter);  // Exemplo de aplicação no roteamento de serviços
+router.use("/auth", loginOwner);  // Rota de login não precisa do middleware
+router.use("/establishment", authMiddleware, establishmentRouter); // Aplica o middleware para autenticar rotas de estabelecimentos
+router.use("/owner", authMiddleware, ownerRouter); // Aplica para o owner
 
 module.exports = router;

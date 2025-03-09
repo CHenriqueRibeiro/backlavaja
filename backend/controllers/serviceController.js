@@ -1,9 +1,9 @@
-const Establishment = require('../models/Establishment');
 const Service = require('../models/Service');
+const Establishment = require('../models/Establishment');
 
 exports.createService = async (req, res) => {
-  const { name, description, price, availableDays, availableHours } = req.body;
-  const establishmentId = req.params.establishmentId; // Pega o ID do estabelecimento da URL
+  const { name, description, price, duration, dailyLimit, availability } = req.body;
+  const establishmentId = req.params.establishmentId; // ID do estabelecimento na URL
 
   try {
     // Verifica se o estabelecimento existe
@@ -13,36 +13,42 @@ exports.createService = async (req, res) => {
       return res.status(404).json({ message: 'Estabelecimento não encontrado.' });
     }
 
-    // Verifica se o usuário autenticado é o dono do estabelecimento
-    if (establishment.owner.toString() !== req.user._id.toString()) {
+    // Verifica se o dono do token (req.user.ownerId) é o dono do estabelecimento
+    if (establishment.owner.toString() !== req.user.ownerId.toString()) {
       return res.status(403).json({ message: 'Você não tem permissão para criar um serviço neste estabelecimento.' });
     }
 
-    // Cria o novo serviço associando o establishmentId e o owner (a partir do token)
-    const newService = new Service({
+    // Criação do novo serviço dentro do array de services do estabelecimento
+    const newService = {
       name,
       description,
       price,
-      availableDays,
-      availableHours,
-      owner: req.user._id, // Associando o owner automaticamente a partir do token
-    });
+      duration,
+      dailyLimit,
+      availability: availability.map(item => ({
+        day: item.day, // Ex: "Segunda"
+        availableHours: item.availableHours.map(hour => ({
+          start: hour.start, // Ex: "08:00"
+          end: hour.end, // Ex: "12:00"
+        })),
+      })),
+    };
 
-    await newService.save();
-
-    // Adiciona o novo serviço ao array de serviços do estabelecimento
-    establishment.services.push(newService._id);
+    // Adiciona o serviço ao estabelecimento e salva
+    establishment.services.push(newService);
     await establishment.save();
 
+    // Retorna a resposta com sucesso
     return res.status(201).json({
       message: 'Serviço criado com sucesso!',
-      service: newService,
+      service: newService, // Retorna o serviço recém-criado
     });
+
   } catch (error) {
+    console.log('Erro ao criar serviço:', error);
     return res.status(500).json({ message: 'Erro ao criar serviço.', error });
   }
 };
-
 
 
 exports.updateService = async (req, res) => {
@@ -142,28 +148,5 @@ exports.getServicesByEstablishment = async (req, res) => {
     return res.status(500).json({ message: 'Erro ao obter serviços.', error });
   }
 };
-
-exports.getServicesByEstablishment = async (req, res) => {
-    const { establishmentId } = req.params;
-  
-    try {
-
-      const establishment = await Establishment.findById(establishmentId);
-  
-      if (!establishment) {
-        return res.status(404).json({ message: 'Estabelecimento não encontrado.' });
-      }
-
-      const services = establishment.services;
-  
-      if (!services || services.length === 0) {
-        return res.status(404).json({ message: 'Nenhum serviço encontrado para este estabelecimento.' });
-      }
-  
-      return res.status(200).json({ services });
-    } catch (error) {
-      return res.status(500).json({ message: 'Erro ao obter serviços.', error });
-    }
-  };
   
   

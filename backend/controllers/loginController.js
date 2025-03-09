@@ -1,12 +1,11 @@
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const Owner = require('../models/Owner');
 
 const SECRET_KEY = process.env.SECRET_KEY;
 
 const loginOwner = async (req, res) => {
   const { email, password } = req.body;
-  console.log('SECRET_KEY:', process.env.SECRET_KEY);
 
   if (!SECRET_KEY) {
     return res.status(500).json({ message: 'Erro interno: Chave secreta não configurada' });
@@ -23,6 +22,7 @@ const loginOwner = async (req, res) => {
       return res.status(400).json({ message: 'Senha incorreta!' });
     }
 
+    // Geração do token com o _id do owner
     const token = jwt.sign({ ownerId: owner._id }, SECRET_KEY, { expiresIn: '1h' });
 
     res.json({

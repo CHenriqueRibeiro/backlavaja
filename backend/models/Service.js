@@ -13,19 +13,35 @@ const serviceSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  availableDays: {
-    type: [String],
+  duration: {
+    type: Number,
     required: true,
   },
-  availableHours: {
-    type: [String],
+  dailyLimit: {
+    type: Number,
     required: true,
   },
-  owner: {
+  availability: [{
+    day: {
+      type: String,
+      required: true,
+    },
+    availableHours: [{
+      start: {
+        type: String,
+        required: true,
+      },
+      end: {
+        type: String,
+        required: true,
+      },
+    }],
+  }],
+  establishment: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Owner",
+    ref: "Establishment",
     required: true,
-  },
+  }
 }, { timestamps: true });
 
 const Service = mongoose.model("Service", serviceSchema);

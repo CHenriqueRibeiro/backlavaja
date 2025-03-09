@@ -1,7 +1,7 @@
 const Owner = require('../models/Owner');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const SECRET_KEY = process.env.SECRET_KEY;
 exports.registerOwner = async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -23,7 +23,7 @@ exports.registerOwner = async (req, res) => {
 
     await newOwner.save();
 
-    const token = jwt.sign({ id: newOwner._id }, 'your_secret_key', { expiresIn: '1h' });
+    const token = jwt.sign({ id: newOwner._id }, SECRET_KEY, { expiresIn: '1h' });
 
     res.status(201).json({
       owner: {

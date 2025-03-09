@@ -18,39 +18,36 @@ const establishmentSchema = new Schema({
         type: String,
         required: true
     },
-    services: [{
-        name: {
-            type: String,
-            required: true
-        },
-        description: {
-            type: String,
-            required: true
-        },
-        price: {
-            type: Number,
-            required: true
-        },
-        duration: {
-            type: Number,
-            required: true
-        },
-        dailyLimit: {
-            type: Number,
-            required: true
-        },
-        availability: [{
+    services: {
+        type: [{
+          name: {
+            type: String
+          },
+          description: {
+            type: String
+          },
+          price: {
+            type: Number
+          },
+          duration: {
+            type: Number
+          },
+          dailyLimit: {
+            type: Number
+          },
+          availability: [{
             day: {
-                type: String, 
-                enum: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
-                required: true
+              type: String,
+              enum: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
             },
             availableHours: [{
-                start: { type: String, required: true },
-                end: { type: String, required: true }
+              start: { type: String },
+              end: { type: String }
             }]
-        }]
-    }],
+          }]
+        }],
+        default: [] // Aqui, garantimos que será um array
+      },
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Owner",

@@ -8,13 +8,12 @@ const authMiddleware = (req, res, next) => {
   }
 
   try {
-    // Decodificando o token e extraindo o ownerId
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
-    req.user = decoded;  // O decoded agora terá o ownerId
+    req.user = decoded;
 
-    console.log('Token decodificado:', decoded); // Log para ver o conteúdo do JWT
+    console.log('Token decodificado:', decoded);
 
-    next(); // Passa para a próxima função/middleware
+    next();
   } catch (error) {
     console.error('Erro ao verificar o token:', error);
     res.status(400).json({ msg: "Token inválido", error: error.message });

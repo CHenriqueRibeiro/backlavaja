@@ -3,22 +3,21 @@ const Establishment = require('../models/Establishment');
 
 exports.createService = async (req, res) => {
   const { name, description, price, duration, dailyLimit, availability } = req.body;
-  const establishmentId = req.params.establishmentId; // ID do estabelecimento na URL
+  const establishmentId = req.params.establishmentId;
 
   try {
-    // Verifica se o estabelecimento existe
+
     const establishment = await Establishment.findById(establishmentId);
 
     if (!establishment) {
       return res.status(404).json({ message: 'Estabelecimento não encontrado.' });
     }
 
-    // Verifica se o dono do token (req.user.ownerId) é o dono do estabelecimento
-    if (establishment.owner.toString() !== req.user.ownerId.toString()) {
+    if (establishment.owner.toString() !== req.user.id.toString()) {
       return res.status(403).json({ message: 'Você não tem permissão para criar um serviço neste estabelecimento.' });
     }
 
-    // Criação do novo serviço dentro do array de services do estabelecimento
+
     const newService = {
       name,
       description,
@@ -26,22 +25,22 @@ exports.createService = async (req, res) => {
       duration,
       dailyLimit,
       availability: availability.map(item => ({
-        day: item.day, // Ex: "Segunda"
+        day: item.day,
         availableHours: item.availableHours.map(hour => ({
-          start: hour.start, // Ex: "08:00"
-          end: hour.end, // Ex: "12:00"
+          start: hour.start,
+          end: hour.end,
         })),
       })),
     };
 
-    // Adiciona o serviço ao estabelecimento e salva
+
+    console.log("isso e o establishment:",establishment)
     establishment.services.push(newService);
     await establishment.save();
 
-    // Retorna a resposta com sucesso
     return res.status(201).json({
-      message: 'Serviço criado com sucesso!',
-      service: newService, // Retorna o serviço recém-criado
+      message: 'Serviço criado com sucesso!!',
+      service: newService
     });
 
   } catch (error) {
@@ -49,6 +48,7 @@ exports.createService = async (req, res) => {
     return res.status(500).json({ message: 'Erro ao criar serviço.', error });
   }
 };
+
 
 
 exports.updateService = async (req, res) => {
@@ -61,7 +61,7 @@ exports.updateService = async (req, res) => {
       return res.status(404).json({ message: 'Serviço não encontrado' });
     }
 
-    // Verifica se o usuário autenticado é o dono do estabelecimento que tem esse serviço
+
     const establishment = await Establishment.findById(service.establishment);
     if (establishment.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Você não tem permissão para atualizar este serviço.' });
@@ -92,13 +92,11 @@ exports.deleteService = async (req, res) => {
       return res.status(404).json({ message: 'Serviço não encontrado!' });
     }
 
-    // Verifica se o usuário autenticado é o dono do estabelecimento que tem esse serviço
     const establishment = await Establishment.findById(service.establishment);
     if (establishment.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Você não tem permissão para excluir este serviço.' });
     }
 
-    // Remove o serviço do estabelecimento
     const establishmentUpdate = await Establishment.findOne({ services: serviceId });
     if (establishmentUpdate) {
       establishmentUpdate.services.pull(serviceId);
@@ -128,25 +126,22 @@ exports.getAllServices = async (req, res) => {
 };
 
 exports.getServicesByEstablishment = async (req, res) => {
-  const { establishmentId } = req.params;
+  const establishmentId = req.params.establishmentId;
 
   try {
-    const establishment = await Establishment.findById(establishmentId);
+      const establishment = await Establishment.findById(establishmentId);
 
-    if (!establishment) {
-      return res.status(404).json({ message: 'Estabelecimento não encontrado.' });
-    }
+      if (!establishment) {
+          return res.status(404).json({ message: "Estabelecimento não encontrado." });
+      }
 
-    const services = establishment.services;
-
-    if (!services || services.length === 0) {
-      return res.status(404).json({ message: 'Nenhum serviço encontrado para este estabelecimento.' });
-    }
-
-    return res.status(200).json({ services });
+      return res.status(200).json({ services: establishment});
   } catch (error) {
-    return res.status(500).json({ message: 'Erro ao obter serviços.', error });
+      console.log("Erro ao buscar serviços:", error);
+      return res.status(500).json({ message: "Erro ao buscar serviços." });
   }
 };
+
+
   
   

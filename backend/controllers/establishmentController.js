@@ -8,11 +8,10 @@ exports.createEstablishment = async (req, res) => {
       address,
       openingHours,
       image,
-      services,
       owner
     } = req.body;
 
-    if (!nameEstablishment || !address || !openingHours || !image || !services || !owner) {
+    if (!nameEstablishment || !address || !openingHours || !image || !owner) {
       return res.status(400).json({ message: 'Campos obrigatórios faltando' });
     }
 
@@ -27,7 +26,6 @@ exports.createEstablishment = async (req, res) => {
       address,
       openingHours,
       image,
-      services,
       owner
     });
 

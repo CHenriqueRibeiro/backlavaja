@@ -22,7 +22,6 @@ const loginOwner = async (req, res) => {
       return res.status(400).json({ message: 'Senha incorreta!' });
     }
 
-    // Geração do token com o _id do owner
     const token = jwt.sign({ ownerId: owner._id }, SECRET_KEY, { expiresIn: '1h' });
 
     res.json({

@@ -46,7 +46,7 @@ const establishmentSchema = new Schema({
             }]
           }]
         }],
-        default: [] // Aqui, garantimos que será um array
+        default: []
       },
     owner: {
         type: mongoose.Schema.Types.ObjectId,

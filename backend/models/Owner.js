@@ -14,6 +14,10 @@ const ownerSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  phone:{
+    type:Number,
+    required: true
+  },
   establishments: [
     {
       type: mongoose.Schema.Types.ObjectId,

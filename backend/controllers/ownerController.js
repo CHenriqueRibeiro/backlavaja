@@ -2,8 +2,9 @@ const Owner = require('../models/Owner');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const SECRET_KEY = process.env.SECRET_KEY;
+
 exports.registerOwner = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
 
   try {
     const existingOwner = await Owner.findOne({ email });
@@ -17,6 +18,7 @@ exports.registerOwner = async (req, res) => {
     const newOwner = new Owner({
       name,
       email,
+      phone,
       password: hashedPassword,
       establishments: [],
     });
@@ -30,6 +32,7 @@ exports.registerOwner = async (req, res) => {
         id: newOwner._id,
         name: newOwner.name,
         email: newOwner.email,
+        phone: newOwner.phone
       },
       token,
     });

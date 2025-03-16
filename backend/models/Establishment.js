@@ -1,58 +1,77 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
-const establishmentSchema = new Schema({
+const establishmentSchema = new Schema(
+  {
     nameEstablishment: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     address: {
-        type: String,
-        required: true
+      street: { type: String, required: true },
+      number: { type: String, required: true },
+      neighborhood: { type: String, required: true },
+      city: { type: String, required: true },
+      state: { type: String, required: true },
+      latitude: { type: Number, required: true },
+      longitude: { type: Number, required: true },
+      cep: { type: Number, required: true },
     },
     openingHours: {
-        open: { type: String, required: true },
-        close: { type: String, required: true }
-    },
-    image: {
-        type: String,
-        required: true
+      open: { type: String, required: true },
+      close: { type: String, required: true },
     },
     services: {
-        type: [{
+      type: [
+        {
           name: {
-            type: String
+            type: String,
           },
           description: {
-            type: String
+            type: String,
           },
           price: {
-            type: Number
+            type: Number,
           },
           duration: {
-            type: Number
+            type: Number,
           },
           dailyLimit: {
-            type: Number
+            type: Number,
           },
-          availability: [{
-            day: {
-              type: String,
-              enum: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+          availability: [
+            {
+              day: {
+                type: String,
+                enum: [
+                  "Domingo",
+                  "Segunda",
+                  "Terça",
+                  "Quarta",
+                  "Quinta",
+                  "Sexta",
+                  "Sábado",
+                ],
+              },
+              availableHours: [
+                {
+                  start: { type: String },
+                  end: { type: String },
+                },
+              ],
             },
-            availableHours: [{
-              start: { type: String },
-              end: { type: String }
-            }]
-          }]
-        }],
-        default: []
-      },
+          ],
+        },
+      ],
+      default: [],
+    },
     owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Owner",
-      }
-}, { timestamps: true });
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Owner",
+    },
+  },
+  { timestamps: true }
+);
 
 const Establishment = mongoose.model("Establishment", establishmentSchema);
 

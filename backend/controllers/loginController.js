@@ -28,8 +28,6 @@ const loginOwner = async (req, res) => {
       expiresIn: "1h",
     });
 
-    console.log("Owner data:", owner);
-
     res.json({
       message: "Login bem-sucedido!",
       token,

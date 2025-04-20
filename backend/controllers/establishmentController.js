@@ -2,7 +2,6 @@ const Establishment = require("../models/Establishment");
 const Owner = require("../models/Owner");
 
 exports.createEstablishment = async (req, res) => {
-  console.log("entrou");
   try {
     const { nameEstablishment, address, openingHours, owner } = req.body;
 
@@ -44,7 +43,6 @@ exports.createEstablishment = async (req, res) => {
       },
       owner,
     });
-    console.log(newEstablishment);
     await newEstablishment.save();
 
     ownerExists.establishments.push(newEstablishment);

@@ -45,7 +45,79 @@ exports.bookAppointment = async (req, res) => {
         .json({ message: "ID de serviço ou estabelecimento inválido!" });
     }
 
-    // Criando o novo agendamento
+    const establishment = await Establishment.findById(establishmentId);
+    if (!establishment) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado!" });
+    }
+
+    const selectedService = establishment.services.find(
+      (s) => s._id?.toString() === serviceId
+    );
+
+    if (!selectedService) {
+      return res.status(404).json({ message: "Serviço não encontrado!" });
+    }
+
+    const dayOfWeek = new Date(date).getDay();
+    const daysOfWeek = [
+      "Domingo",
+      "Segunda",
+      "Terça",
+      "Quarta",
+      "Quinta",
+      "Sexta",
+      "Sábado",
+    ];
+    const capitalizedDay = daysOfWeek[dayOfWeek];
+
+    const availabilityDay = selectedService.availability.find(
+      (a) => a.day === capitalizedDay
+    );
+
+    if (!availabilityDay) {
+      return res
+        .status(400)
+        .json({ message: `Serviço indisponível para ${capitalizedDay}` });
+    }
+
+    const hourIsAvailable = availabilityDay.availableHours.some((h) => {
+      return startTime >= h.start && endTime <= h.end;
+    });
+
+    if (!hourIsAvailable) {
+      return res
+        .status(400)
+        .json({ message: "Horário indisponível para esse serviço." });
+    }
+
+    const agendamentosDoDia = await Appointment.countDocuments({
+      service: serviceId,
+      establishment: establishmentId,
+      date,
+    });
+
+    if (agendamentosDoDia >= selectedService.dailyLimit) {
+      return res
+        .status(400)
+        .json({ message: "Limite diário de agendamentos atingido!" });
+    }
+
+    const existingAppointment = await Appointment.findOne({
+      service: serviceId,
+      establishment: establishmentId,
+      date,
+      $or: [
+        { startTime: { $lte: endTime }, endTime: { $gte: startTime } },
+        { endTime: { $gte: startTime }, startTime: { $lte: endTime } },
+      ],
+    });
+
+    if (existingAppointment) {
+      return res.status(400).json({ message: "Horário já ocupado." });
+    }
+
     const appointment = new Appointment({
       clientName,
       clientPhone,
@@ -60,16 +132,34 @@ exports.bookAppointment = async (req, res) => {
       endTime,
     });
 
-    // Salvando o agendamento no banco de dados
     await appointment.save();
 
-    // Respondendo com sucesso
-    res
-      .status(201)
-      .json({ message: "Agendamento realizado com sucesso!", appointment });
+    selectedService.availability = selectedService.availability.map((a) => {
+      if (a.day === capitalizedDay) {
+        const updatedHours = a.availableHours.filter((h) => {
+          return !(h.start === startTime && h.end === endTime);
+        });
+        return { ...a.toObject(), availableHours: updatedHours };
+      }
+      return a;
+    });
+
+    await Establishment.updateOne(
+      { _id: establishmentId, "services._id": serviceId },
+      {
+        $set: {
+          "services.$.availability": selectedService.availability,
+        },
+      }
+    );
+
+    return res.status(201).json({
+      message: "Agendamento realizado com sucesso!",
+      appointment,
+    });
   } catch (error) {
     console.error("Erro ao agendar serviço:", error);
-    res
+    return res
       .status(500)
       .json({ message: "Erro ao agendar serviço.", error: error.message });
   }
@@ -115,5 +205,78 @@ exports.getAppointmentsByEstablishment = async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Erro ao buscar agendamentos" });
+  }
+};
+
+exports.updateAppointmentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res
+        .status(400)
+        .json({ message: "O campo 'status' é obrigatório." });
+    }
+
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: "Agendamento não encontrado." });
+    }
+
+    return res.status(200).json({
+      message: "Status do agendamento atualizado com sucesso.",
+      appointment: updatedAppointment,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar status do agendamento:", error);
+    return res.status(500).json({
+      message: "Erro ao atualizar status do agendamento.",
+      error: error.message,
+    });
+  }
+};
+
+exports.updateAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { price, serviceName, veiculo, startTime } = req.body;
+
+    if (!serviceName || !price || !veiculo || !startTime) {
+      return res
+        .status(400)
+        .json({ message: "Todos os campos são obrigatórios." });
+    }
+
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      id,
+      {
+        serviceName,
+        price,
+        veiculo,
+        startTime,
+      },
+      { new: true }
+    );
+
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: "Agendamento não encontrado." });
+    }
+
+    return res.status(200).json({
+      message: "Agendamento atualizado com sucesso.",
+      appointment: updatedAppointment,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar o agendamento:", error);
+    return res.status(500).json({
+      message: "Erro ao atualizar o agendamento.",
+      error: error.message,
+    });
   }
 };

@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 const Appointment = require("../models/Appointment");
 const Establishment = require("../models/Establishment");
 
+function subtractOneMinute(timeStr) {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  const date = new Date(0, 0, 0, hours, minutes - 1);
+  return date.toTimeString().slice(0, 5);
+}
+
 exports.bookAppointment = async (req, res) => {
   try {
     const {
@@ -253,6 +259,37 @@ exports.updateAppointment = async (req, res) => {
         .json({ message: "Todos os campos são obrigatórios." });
     }
 
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
+      return res.status(404).json({ message: "Agendamento não encontrado." });
+    }
+
+    const establishment = await Establishment.findById(
+      appointment.establishment
+    );
+    if (!establishment) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado." });
+    }
+
+    const selectedService = establishment.services.find(
+      (s) => s.name === serviceName
+    );
+
+    if (!selectedService) {
+      return res.status(404).json({ message: "Serviço não encontrado." });
+    }
+
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const durationMinutes = selectedService.duration;
+    const endDate = new Date(0, 0, 0, startHour, startMinute + durationMinutes);
+
+    const rawEndTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(
+      endDate.getMinutes()
+    ).padStart(2, "0")}`;
+    const endTime = subtractOneMinute(rawEndTime);
+
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       id,
       {
@@ -260,13 +297,10 @@ exports.updateAppointment = async (req, res) => {
         price,
         veiculo,
         startTime,
+        endTime,
       },
       { new: true }
     );
-
-    if (!updatedAppointment) {
-      return res.status(404).json({ message: "Agendamento não encontrado." });
-    }
 
     return res.status(200).json({
       message: "Agendamento atualizado com sucesso.",
@@ -276,6 +310,35 @@ exports.updateAppointment = async (req, res) => {
     console.error("Erro ao atualizar o agendamento:", error);
     return res.status(500).json({
       message: "Erro ao atualizar o agendamento.",
+      error: error.message,
+    });
+  }
+};
+
+exports.deleteAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ message: "ID do agendamento é obrigatório." });
+    }
+
+    const deletedAppointment = await Appointment.findByIdAndDelete(id);
+
+    if (!deletedAppointment) {
+      return res.status(404).json({ message: "Agendamento não encontrado." });
+    }
+
+    return res.status(200).json({
+      message: "Agendamento deletado com sucesso.",
+      appointment: deletedAppointment,
+    });
+  } catch (error) {
+    console.error("Erro ao deletar o agendamento:", error);
+    return res.status(500).json({
+      message: "Erro ao deletar o agendamento.",
       error: error.message,
     });
   }

@@ -13,4 +13,5 @@ router.patch(
   appointmentController.updateAppointmentStatus
 );
 router.put("/appointments/:id", appointmentController.updateAppointment);
+router.delete("/appointments/:id", appointmentController.deleteAppointment);
 module.exports = router;

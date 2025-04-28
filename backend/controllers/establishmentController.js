@@ -3,7 +3,8 @@ const Owner = require("../models/Owner");
 
 exports.createEstablishment = async (req, res) => {
   try {
-    const { nameEstablishment, address, openingHours, owner } = req.body;
+    const { nameEstablishment, address, openingHours, owner, paymentMethods } =
+      req.body;
 
     if (
       !nameEstablishment ||
@@ -25,6 +26,29 @@ exports.createEstablishment = async (req, res) => {
       return res.status(404).json({ message: "Dono não encontrado" });
     }
 
+    if (!openingHours?.open || !openingHours?.close) {
+      return res.status(400).json({
+        message: "Horário de abertura e fechamento são obrigatórios",
+      });
+    }
+
+    const newOpeningHours = {
+      open: openingHours.open,
+      close: openingHours.close,
+      hasLunchBreak: openingHours.hasLunchBreak || false,
+    };
+
+    if (newOpeningHours.hasLunchBreak) {
+      if (!openingHours.intervalOpen || !openingHours.intervalClose) {
+        return res.status(400).json({
+          message:
+            "Horário de intervalo é obrigatório quando 'hasInterval' é true",
+        });
+      }
+      newOpeningHours.intervalOpen = openingHours.intervalOpen;
+      newOpeningHours.intervalClose = openingHours.intervalClose;
+    }
+
     const newEstablishment = new Establishment({
       nameEstablishment,
       address: {
@@ -34,15 +58,17 @@ exports.createEstablishment = async (req, res) => {
         street: address.street,
         number: address.number,
         cep: address.cep,
-        latitude: address.latitude,
-        longitude: address.longitude,
+        complement: address.complement || "",
       },
-      openingHours: {
-        open: openingHours.open,
-        close: openingHours.close,
+      location: {
+        type: "Point",
+        coordinates: [address.longitude, address.latitude],
       },
+      openingHours: newOpeningHours,
       owner,
+      paymentMethods: paymentMethods || [],
     });
+
     await newEstablishment.save();
 
     ownerExists.establishments.push(newEstablishment);

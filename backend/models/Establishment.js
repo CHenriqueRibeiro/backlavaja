@@ -3,9 +3,10 @@ const { Schema } = mongoose;
 
 const establishmentSchema = new Schema(
   {
-    nameEstablishment: {
-      type: String,
-      required: true,
+    nameEstablishment: { type: String, required: true },
+    paymentMethods: {
+      type: [String],
+      default: [],
     },
     address: {
       street: { type: String, required: true },
@@ -13,32 +14,28 @@ const establishmentSchema = new Schema(
       neighborhood: { type: String, required: true },
       city: { type: String, required: true },
       state: { type: String, required: true },
-      latitude: { type: Number, required: true },
-      longitude: { type: Number, required: true },
       cep: { type: Number, required: true },
+      complement: { type: String, required: false },
     },
-    openingHours: {
-      open: { type: String, required: true },
-      close: { type: String, required: true },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        required: true,
+      },
+      coordinates: {
+        type: [Number],
+        required: true,
+      },
     },
     services: {
       type: [
         {
-          name: {
-            type: String,
-          },
-          description: {
-            type: String,
-          },
-          price: {
-            type: Number,
-          },
-          duration: {
-            type: Number,
-          },
-          dailyLimit: {
-            type: Number,
-          },
+          name: { type: String },
+          description: { type: String },
+          price: { type: Number },
+          duration: { type: Number },
+          dailyLimit: { type: Number },
           availability: [
             {
               day: {
@@ -65,6 +62,13 @@ const establishmentSchema = new Schema(
       ],
       default: [],
     },
+    openingHours: {
+      open: { type: String, required: true },
+      close: { type: String, required: true },
+      hasInterval: { type: Boolean, default: false },
+      intervalOpen: { type: String },
+      intervalClose: { type: String },
+    },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Owner",
@@ -73,6 +77,7 @@ const establishmentSchema = new Schema(
   { timestamps: true }
 );
 
+establishmentSchema.index({ location: "2dsphere" });
 const Establishment = mongoose.model("Establishment", establishmentSchema);
 
 module.exports = Establishment;

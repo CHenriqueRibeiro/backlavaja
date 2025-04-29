@@ -65,7 +65,7 @@ const establishmentSchema = new Schema(
     openingHours: {
       open: { type: String, required: true },
       close: { type: String, required: true },
-      hasInterval: { type: Boolean, default: false },
+      hasLunchBreak: { type: Boolean, default: false },
       intervalOpen: { type: String },
       intervalClose: { type: String },
     },

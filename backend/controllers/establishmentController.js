@@ -102,3 +102,71 @@ exports.getEstablishmentsByOwner = async (req, res) => {
       .json({ message: "Erro ao buscar estabelecimentos", error });
   }
 };
+
+exports.updateEstablishment = async (req, res) => {
+  try {
+    const { establishmentId } = req.params;
+    const { nameEstablishment, address, openingHours, paymentMethods } =
+      req.body;
+
+    const establishment = await Establishment.findById(establishmentId);
+    if (!establishment) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado" });
+    }
+
+    if (nameEstablishment !== undefined) {
+      establishment.nameEstablishment = nameEstablishment;
+    }
+
+    if (address) {
+      establishment.address = {
+        ...establishment.address.toObject(),
+        ...address,
+      };
+      if (address.latitude !== undefined && address.longitude !== undefined) {
+        establishment.location = {
+          type: "Point",
+          coordinates: [address.longitude, address.latitude],
+        };
+      }
+    }
+
+    if (openingHours) {
+      const updatedOpeningHours = {
+        ...establishment.openingHours.toObject(),
+        ...openingHours,
+      };
+
+      if (openingHours.hasLunchBreak) {
+        if (!openingHours.intervalOpen || !openingHours.intervalClose) {
+          return res.status(400).json({
+            message:
+              "Horário de intervalo é obrigatório quando 'hasLunchBreak' é true",
+          });
+        }
+        updatedOpeningHours.intervalOpen = openingHours.intervalOpen;
+        updatedOpeningHours.intervalClose = openingHours.intervalClose;
+      }
+
+      establishment.openingHours = updatedOpeningHours;
+    }
+
+    if (paymentMethods !== undefined) {
+      establishment.paymentMethods = paymentMethods;
+    }
+
+    await establishment.save();
+
+    return res.status(200).json({
+      message: "Estabelecimento atualizado com sucesso!",
+      establishment,
+    });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao atualizar estabelecimento", error });
+  }
+};

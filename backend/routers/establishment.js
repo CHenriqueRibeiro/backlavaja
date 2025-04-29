@@ -8,4 +8,8 @@ router.put(
   "/establishment/:establishmentId",
   establishmentController.updateEstablishment
 );
+router.delete(
+  "/establishment/:establishmentId",
+  establishmentController.deleteEstablishment
+);
 module.exports = router;

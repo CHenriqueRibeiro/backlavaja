@@ -3,9 +3,14 @@ const Owner = require("../models/Owner");
 
 exports.createEstablishment = async (req, res) => {
   try {
-    const { nameEstablishment, address, openingHours, owner, paymentMethods } =
-      req.body;
-
+    const {
+      nameEstablishment,
+      address,
+      openingHours,
+      owner,
+      paymentMethods,
+      workingDays,
+    } = req.body;
     if (
       !nameEstablishment ||
       !address?.street ||
@@ -16,9 +21,30 @@ exports.createEstablishment = async (req, res) => {
       !address?.state ||
       !address?.latitude ||
       !address?.longitude ||
-      !owner
+      !owner ||
+      !workingDays ||
+      !Array.isArray(workingDays) ||
+      workingDays.length === 0
     ) {
       return res.status(400).json({ message: "Campos obrigatórios faltando" });
+    }
+
+    const diasValidos = [
+      "Domingo",
+      "Segunda",
+      "Terça",
+      "Quarta",
+      "Quinta",
+      "Sexta",
+      "Sábado",
+    ];
+    const diasInvalidos = workingDays.filter(
+      (dia) => !diasValidos.includes(dia)
+    );
+    if (diasInvalidos.length > 0) {
+      return res.status(400).json({
+        message: `Dias inválidos: ${diasInvalidos.join(", ")}`,
+      });
     }
 
     const ownerExists = await Owner.findById(owner);
@@ -42,7 +68,7 @@ exports.createEstablishment = async (req, res) => {
       if (!openingHours.intervalOpen || !openingHours.intervalClose) {
         return res.status(400).json({
           message:
-            "Horário de intervalo é obrigatório quando 'hasInterval' é true",
+            "Horário de intervalo é obrigatório quando 'hasLunchBreak' é true",
         });
       }
       newOpeningHours.intervalOpen = openingHours.intervalOpen;
@@ -65,6 +91,7 @@ exports.createEstablishment = async (req, res) => {
         coordinates: [address.longitude, address.latitude],
       },
       openingHours: newOpeningHours,
+      workingDays,
       owner,
       paymentMethods: paymentMethods || [],
     });
@@ -106,8 +133,13 @@ exports.getEstablishmentsByOwner = async (req, res) => {
 exports.updateEstablishment = async (req, res) => {
   try {
     const { establishmentId } = req.params;
-    const { nameEstablishment, address, openingHours, paymentMethods } =
-      req.body;
+    const {
+      nameEstablishment,
+      address,
+      openingHours,
+      paymentMethods,
+      workingDays,
+    } = req.body;
 
     const establishment = await Establishment.findById(establishmentId);
     if (!establishment) {
@@ -153,6 +185,27 @@ exports.updateEstablishment = async (req, res) => {
       establishment.openingHours = updatedOpeningHours;
     }
 
+    if (workingDays !== undefined) {
+      const diasValidos = [
+        "Domingo",
+        "Segunda",
+        "Terça",
+        "Quarta",
+        "Quinta",
+        "Sexta",
+        "Sábado",
+      ];
+      const diasInvalidos = workingDays.filter(
+        (dia) => !diasValidos.includes(dia)
+      );
+      if (diasInvalidos.length > 0) {
+        return res.status(400).json({
+          message: `Dias inválidos: ${diasInvalidos.join(", ")}`,
+        });
+      }
+      establishment.workingDays = workingDays;
+    }
+
     if (paymentMethods !== undefined) {
       establishment.paymentMethods = paymentMethods;
     }
@@ -168,5 +221,36 @@ exports.updateEstablishment = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erro ao atualizar estabelecimento", error });
+  }
+};
+exports.deleteEstablishment = async (req, res) => {
+  try {
+    const { establishmentId } = req.params;
+
+    const establishment = await Establishment.findById(establishmentId);
+    if (!establishment) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado" });
+    }
+
+    const owner = await Owner.findById(establishment.owner);
+    if (owner) {
+      owner.establishments = owner.establishments.filter(
+        (estId) => estId.toString() !== establishmentId
+      );
+      await owner.save();
+    }
+
+    await Establishment.findByIdAndDelete(establishmentId);
+
+    return res
+      .status(200)
+      .json({ message: "Estabelecimento deletado com sucesso" });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao deletar o estabelecimento", error });
   }
 };

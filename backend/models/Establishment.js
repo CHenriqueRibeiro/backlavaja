@@ -69,6 +69,20 @@ const establishmentSchema = new Schema(
       intervalOpen: { type: String },
       intervalClose: { type: String },
     },
+    workingDays: {
+      type: [String],
+      enum: [
+        "Domingo",
+        "Segunda",
+        "Terça",
+        "Quarta",
+        "Quinta",
+        "Sexta",
+        "Sábado",
+      ],
+      required: true,
+    },
+
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Owner",

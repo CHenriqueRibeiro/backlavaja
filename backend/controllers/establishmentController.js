@@ -118,9 +118,11 @@ exports.getEstablishmentsByOwner = async (req, res) => {
     const { ownerId } = req.params;
 
     const owner = await Owner.findById(ownerId).populate("establishments");
+
     if (!owner) {
       return res.status(404).json({ message: "Dono não encontrado" });
     }
+
     return res.status(200).json({ establishments: owner.establishments });
   } catch (error) {
     console.error(error);

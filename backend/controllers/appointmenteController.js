@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const fetch = require("node-fetch");
 const Appointment = require("../models/Appointment");
 const Establishment = require("../models/Establishment");
 
@@ -7,7 +8,10 @@ function subtractOneMinute(timeStr) {
   const date = new Date(0, 0, 0, hours, minutes - 1);
   return date.toTimeString().slice(0, 5);
 }
-
+const formatDateForWhatsApp = (date) => {
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+};
 exports.bookAppointment = async (req, res) => {
   try {
     const {
@@ -68,13 +72,13 @@ exports.bookAppointment = async (req, res) => {
 
     const dayOfWeek = new Date(date).getDay();
     const daysOfWeek = [
-      "Domingo",
       "Segunda",
       "Terça",
       "Quarta",
       "Quinta",
       "Sexta",
       "Sábado",
+      "Domingo",
     ];
     const capitalizedDay = daysOfWeek[dayOfWeek];
 
@@ -139,6 +143,40 @@ exports.bookAppointment = async (req, res) => {
     });
 
     await appointment.save();
+    const formattedDate = formatDateForWhatsApp(date);
+    const sanitizedPhone = `55${clientPhone.replace(/\D/g, "")}`;
+    const whatsappBookingMessage = `Olá ${clientName}, o agendamento do(a) *${serviceName}* do(a) seu *${veiculo}* foi confirmado com sucesso para o dia *${formattedDate}* às *${startTime}*. Estamos esperando por você! 🚗✨`;
+
+    try {
+      const whatsappResponse = await fetch(
+        "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            DeviceToken: "b9c02e00-9ad8-4e46-85d5-a1722c118d01",
+            Authorization:
+              "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
+          },
+          body: JSON.stringify({
+            number: sanitizedPhone,
+            text: whatsappBookingMessage,
+          }),
+        }
+      );
+
+      if (!whatsappResponse.ok) {
+        console.error(
+          "Erro ao enviar mensagem de confirmação no WhatsApp:",
+          await whatsappResponse.text()
+        );
+      }
+    } catch (whatsappError) {
+      console.error(
+        "Erro ao tentar enviar mensagem pelo WhatsApp:",
+        whatsappError
+      );
+    }
 
     selectedService.availability = selectedService.availability.map((a) => {
       if (a.day === capitalizedDay) {
@@ -233,6 +271,46 @@ exports.updateAppointmentStatus = async (req, res) => {
 
     if (!updatedAppointment) {
       return res.status(404).json({ message: "Agendamento não encontrado." });
+    }
+    const statusMessages = {
+      Iniciado:
+        "Ótima notícia! A lavagem do seu veículo já começou. Em breve ele estará pronto para você.",
+      Agendado:
+        "Seu agendamento foi confirmado com sucesso! Estamos esperando por você no horário combinado.",
+      "Aguardando cliente":
+        "Seu veículo está pronto, aguardamos a sua chegada para finalizarmos o atendimento.",
+      Entregue:
+        "Tudo certo! Seu veículo foi entregue com sucesso. Agradecemos pela preferência 😊",
+      Cancelado:
+        "Seu agendamento foi cancelado. Se precisar reagendar, estaremos à disposição!",
+    };
+
+    const messageToSend =
+      statusMessages[status] ||
+      `O status do seu agendamento foi alterado para: *${status}*`;
+
+    const whatsappResponse = await fetch(
+      "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          DeviceToken: "b9c02e00-9ad8-4e46-85d5-a1722c118d01",
+          Authorization:
+            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
+        },
+        body: JSON.stringify({
+          number: "5585987206514",
+          text: messageToSend,
+        }),
+      }
+    );
+
+    if (!whatsappResponse.ok) {
+      console.error(
+        "Erro ao enviar mensagem no WhatsApp:",
+        await whatsappResponse.text()
+      );
     }
 
     return res.status(200).json({

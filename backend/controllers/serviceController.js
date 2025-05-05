@@ -2,8 +2,16 @@ const Service = require("../models/Service");
 const Establishment = require("../models/Establishment");
 
 exports.createService = async (req, res) => {
-  const { name, description, price, duration, dailyLimit, availability } =
-    req.body;
+  const {
+    name,
+    description,
+    price,
+    duration,
+    dailyLimit,
+    availability,
+    concurrentService,
+    concurrentServiceValue,
+  } = req.body;
   const establishmentId = req.params.establishmentId;
 
   try {
@@ -24,6 +32,8 @@ exports.createService = async (req, res) => {
       availability,
       establishment: establishmentId,
       owner: establishment.owner,
+      concurrentService,
+      concurrentServiceValue,
     });
 
     await service.save();
@@ -36,6 +46,8 @@ exports.createService = async (req, res) => {
       duration: service.duration,
       dailyLimit: service.dailyLimit,
       availability: service.availability,
+      concurrentService: service.concurrentService,
+      concurrentServiceValue: service.concurrentServiceValue,
     });
 
     await establishment.save();
@@ -70,6 +82,7 @@ exports.updateService = async (req, res) => {
     service.name = name || service.name;
     service.description = description || service.description;
     service.price = price || service.price;
+    service.price = concurrentService || service.concurrentService;
     service.availableDays = availableDays || service.availableDays;
     service.availableHours = availableHours || service.availableHours;
 

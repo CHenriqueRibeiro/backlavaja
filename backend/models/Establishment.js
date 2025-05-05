@@ -58,6 +58,8 @@ const establishmentSchema = new Schema(
               ],
             },
           ],
+          concurrentService: { type: Boolean, default: false },
+          concurrentServiceValue: { type: Number },
         },
       ],
       default: [],

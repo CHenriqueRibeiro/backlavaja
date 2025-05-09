@@ -19,13 +19,13 @@ function timesOverlap(start1, end1, start2, end2) {
 }
 
 const diasSemana = [
-  "Domingo",
   "Segunda",
   "Terça",
   "Quarta",
   "Quinta",
   "Sexta",
   "Sábado",
+  "Domingo",
 ];
 
 exports.getAvailabilityByDate = async (req, res) => {

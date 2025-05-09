@@ -156,7 +156,6 @@ exports.getServicesByEstablishment = async (req, res) => {
 
     return res.status(200).json({ services: establishment });
   } catch (error) {
-    console.log("Erro ao buscar serviços:", error);
     return res.status(500).json({ message: "Erro ao buscar serviços." });
   }
 };

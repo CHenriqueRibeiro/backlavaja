@@ -118,10 +118,8 @@ exports.bookAppointment = async (req, res) => {
       service: serviceId,
       establishment: establishmentId,
       date,
-      $or: [
-        { startTime: { $lte: endTime }, endTime: { $gte: startTime } },
-        { endTime: { $gte: startTime }, startTime: { $lte: endTime } },
-      ],
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
     });
 
     if (existingAppointment) {

@@ -30,13 +30,13 @@ exports.createEstablishment = async (req, res) => {
     }
 
     const diasValidos = [
-      "Domingo",
       "Segunda",
       "Terça",
       "Quarta",
       "Quinta",
       "Sexta",
       "Sábado",
+      "Domingo",
     ];
     const diasInvalidos = workingDays.filter(
       (dia) => !diasValidos.includes(dia)
@@ -189,13 +189,13 @@ exports.updateEstablishment = async (req, res) => {
 
     if (workingDays !== undefined) {
       const diasValidos = [
-        "Domingo",
         "Segunda",
         "Terça",
         "Quarta",
         "Quinta",
         "Sexta",
         "Sábado",
+        "Domingo",
       ];
       const diasInvalidos = workingDays.filter(
         (dia) => !diasValidos.includes(dia)

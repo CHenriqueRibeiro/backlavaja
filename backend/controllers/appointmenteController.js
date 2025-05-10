@@ -261,15 +261,14 @@ exports.updateAppointmentStatus = async (req, res) => {
         .json({ message: "O campo 'status' é obrigatório." });
     }
 
-    const updatedAppointment = await Appointment.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-
-    if (!updatedAppointment) {
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
       return res.status(404).json({ message: "Agendamento não encontrado." });
     }
+
+    appointment.status = status;
+    await appointment.save();
+
     const statusMessages = {
       Iniciado:
         "Ótima notícia! A lavagem do seu veículo já começou. Em breve ele estará pronto para você.",
@@ -287,6 +286,7 @@ exports.updateAppointmentStatus = async (req, res) => {
       statusMessages[status] ||
       `O status do seu agendamento foi alterado para: *${status}*`;
 
+    const sanitizedPhone = `55${appointment.clientPhone.replace(/\D/g, "")}`;
     const whatsappResponse = await fetch(
       "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
       {
@@ -298,7 +298,7 @@ exports.updateAppointmentStatus = async (req, res) => {
             "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
         },
         body: JSON.stringify({
-          number: "5585987206514",
+          number: sanitizedPhone,
           text: messageToSend,
         }),
       }
@@ -306,21 +306,20 @@ exports.updateAppointmentStatus = async (req, res) => {
 
     if (!whatsappResponse.ok) {
       console.error(
-        "Erro ao enviar mensagem no WhatsApp:",
+        "Erro ao enviar mensagem de status no WhatsApp:",
         await whatsappResponse.text()
       );
     }
 
     return res.status(200).json({
-      message: "Status do agendamento atualizado com sucesso.",
-      appointment: updatedAppointment,
+      message: "Status atualizado com sucesso.",
+      appointment,
     });
   } catch (error) {
     console.error("Erro ao atualizar status do agendamento:", error);
-    return res.status(500).json({
-      message: "Erro ao atualizar status do agendamento.",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({ message: "Erro ao atualizar status.", error: error.message });
   }
 };
 

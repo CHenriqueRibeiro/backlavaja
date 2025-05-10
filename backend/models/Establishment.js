@@ -41,13 +41,13 @@ const establishmentSchema = new Schema(
               day: {
                 type: String,
                 enum: [
-                  "Domingo",
                   "Segunda",
                   "Terça",
                   "Quarta",
                   "Quinta",
                   "Sexta",
                   "Sábado",
+                  "Domingo",
                 ],
               },
               availableHours: [
@@ -74,13 +74,13 @@ const establishmentSchema = new Schema(
     workingDays: {
       type: [String],
       enum: [
-        "Domingo",
         "Segunda",
         "Terça",
         "Quarta",
         "Quinta",
         "Sexta",
         "Sábado",
+        "Domingo",
       ],
       required: true,
     },

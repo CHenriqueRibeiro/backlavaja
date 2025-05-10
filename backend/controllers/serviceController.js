@@ -63,70 +63,138 @@ exports.createService = async (req, res) => {
 };
 
 exports.updateService = async (req, res) => {
-  const { serviceId } = req.params;
-  const { name, description, price, availableDays, availableHours } = req.body;
+  const { establishmentId, serviceId } = req.params;
+  const userId = req.user._id ?? req.user.ownerId;
+  const {
+    name,
+    description,
+    price,
+    duration,
+    dailyLimit,
+    availability,
+    concurrentService,
+    concurrentServiceValue,
+  } = req.body;
 
   try {
-    const service = await Service.findById(serviceId);
-    if (!service) {
-      return res.status(404).json({ message: "Serviço não encontrado" });
+    const establishment = await Establishment.findById(establishmentId);
+    if (!establishment) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado." });
     }
 
-    const establishment = await Establishment.findById(service.establishment);
-    if (establishment.owner.toString() !== req.user._id.toString()) {
+    if (establishment.owner.toString() !== userId) {
       return res.status(403).json({
         message: "Você não tem permissão para atualizar este serviço.",
       });
     }
 
-    service.name = name || service.name;
-    service.description = description || service.description;
-    service.price = price || service.price;
-    service.price = concurrentService || service.concurrentService;
-    service.availableDays = availableDays || service.availableDays;
-    service.availableHours = availableHours || service.availableHours;
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({ message: "Serviço não encontrado." });
+    }
+
+    if (service.establishment.toString() !== establishmentId) {
+      return res
+        .status(400)
+        .json({ message: "Este serviço não pertence a este estabelecimento." });
+    }
+
+    // Atualiza o documento Service
+    service.name = name ?? service.name;
+    service.description = description ?? service.description;
+    service.price = price ?? service.price;
+    service.duration = duration ?? service.duration;
+    service.dailyLimit = dailyLimit ?? service.dailyLimit;
+    service.availability = availability ?? service.availability;
+    service.concurrentService = concurrentService ?? service.concurrentService;
+    service.concurrentServiceValue =
+      concurrentServiceValue ?? service.concurrentServiceValue;
 
     await service.save();
 
-    return res
-      .status(200)
-      .json({ message: "Serviço atualizado com sucesso!", service });
+    // Agora sincroniza o array embutido em Establishment.services
+    const idx = establishment.services.findIndex(
+      (s) => s._id.toString() === serviceId
+    );
+    if (idx > -1) {
+      establishment.services[idx] = {
+        _id: service._id,
+        name: service.name,
+        description: service.description,
+        price: service.price,
+        duration: service.duration,
+        dailyLimit: service.dailyLimit,
+        availability: service.availability,
+        concurrentService: service.concurrentService,
+        concurrentServiceValue: service.concurrentServiceValue,
+      };
+      await establishment.save();
+    }
+
+    return res.status(200).json({
+      message: "Serviço atualizado com sucesso!",
+      service,
+    });
   } catch (error) {
+    console.error("Erro ao atualizar serviço:", error);
     return res
       .status(500)
-      .json({ message: "Erro ao atualizar serviço.", error });
+      .json({ message: "Erro ao atualizar serviço.", error: error.message });
   }
 };
 
+// controllers/serviceController.js
 exports.deleteService = async (req, res) => {
-  const { serviceId } = req.params;
+  const { establishmentId, serviceId } = req.params;
+  const userId = req.user._id ?? req.user.ownerId;
 
   try {
+    // 1) Busca estabelecimento e valida existência
+    const establishment = await Establishment.findById(establishmentId);
+    if (!establishment) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado." });
+    }
+
+    // 2) Valida se é o dono
+    if (establishment.owner.toString() !== userId) {
+      return res.status(403).json({
+        message: "Você não tem permissão para excluir este serviço.",
+      });
+    }
+
+    // 3) Busca serviço e valida vínculo
     const service = await Service.findById(serviceId);
     if (!service) {
-      return res.status(404).json({ message: "Serviço não encontrado!" });
+      return res.status(404).json({ message: "Serviço não encontrado." });
+    }
+    if (service.establishment.toString() !== establishmentId) {
+      return res.status(400).json({
+        message: "Este serviço não pertence a este estabelecimento.",
+      });
     }
 
-    const establishment = await Establishment.findById(service.establishment);
-    if (establishment.owner.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Você não tem permissão para excluir este serviço." });
-    }
+    // 4) Remove o Service do Mongo
+    await Service.findByIdAndDelete(serviceId);
 
-    const establishmentUpdate = await Establishment.findOne({
-      services: serviceId,
-    });
-    if (establishmentUpdate) {
-      establishmentUpdate.services.pull(serviceId);
-      await establishmentUpdate.save();
+    // 5) Remove o subdocumento da lista em Establishment.services
+    const idx = establishment.services.findIndex(
+      (s) => s._id.toString() === serviceId
+    );
+    if (idx > -1) {
+      establishment.services.splice(idx, 1);
+      await establishment.save();
     }
-
-    await service.remove();
 
     return res.status(200).json({ message: "Serviço excluído com sucesso!" });
   } catch (error) {
-    return res.status(500).json({ message: "Erro ao excluir serviço.", error });
+    console.error("Erro ao excluir serviço:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao excluir serviço.", error: error.message });
   }
 };
 

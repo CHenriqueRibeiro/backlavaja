@@ -18,16 +18,6 @@ function timesOverlap(start1, end1, start2, end2) {
   return start1 < end2 && start2 < end1;
 }
 
-const diasSemana = [
-  "Segunda",
-  "Terça",
-  "Quarta",
-  "Quinta",
-  "Sexta",
-  "Sábado",
-  "Domingo",
-];
-
 exports.getAvailabilityByDate = async (req, res) => {
   try {
     const establishmentId = req.params.id;
@@ -42,9 +32,21 @@ exports.getAvailabilityByDate = async (req, res) => {
       return res.status(404).json({ error: "Estabelecimento não encontrado" });
     }
 
+    // Correção aqui:
+    const diasSemana = [
+      "Segunda",
+      "Terça",
+      "Quarta",
+      "Quinta",
+      "Sexta",
+      "Sábado",
+      "Domingo",
+    ];
+
     const dateObj = new Date(date);
     const dayIndex = dateObj.getDay();
     const dayName = diasSemana[dayIndex];
+
     const formattedDate = dateObj.toISOString().split("T")[0];
 
     const servicesData = [];

@@ -21,7 +21,7 @@ router.put(
   authenticateToken,
   serviceController.updateService
 );
-// routes/service.routes.js
+
 router.delete(
   "/establishment/:establishmentId/service/:serviceId",
   authenticateToken,

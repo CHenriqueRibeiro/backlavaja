@@ -101,7 +101,6 @@ exports.updateService = async (req, res) => {
         .json({ message: "Este serviço não pertence a este estabelecimento." });
     }
 
-    // Atualiza o documento Service
     service.name = name ?? service.name;
     service.description = description ?? service.description;
     service.price = price ?? service.price;
@@ -114,7 +113,6 @@ exports.updateService = async (req, res) => {
 
     await service.save();
 
-    // Agora sincroniza o array embutido em Establishment.services
     const idx = establishment.services.findIndex(
       (s) => s._id.toString() === serviceId
     );
@@ -145,13 +143,11 @@ exports.updateService = async (req, res) => {
   }
 };
 
-// controllers/serviceController.js
 exports.deleteService = async (req, res) => {
   const { establishmentId, serviceId } = req.params;
   const userId = req.user._id ?? req.user.ownerId;
 
   try {
-    // 1) Busca estabelecimento e valida existência
     const establishment = await Establishment.findById(establishmentId);
     if (!establishment) {
       return res
@@ -159,14 +155,12 @@ exports.deleteService = async (req, res) => {
         .json({ message: "Estabelecimento não encontrado." });
     }
 
-    // 2) Valida se é o dono
     if (establishment.owner.toString() !== userId) {
       return res.status(403).json({
         message: "Você não tem permissão para excluir este serviço.",
       });
     }
 
-    // 3) Busca serviço e valida vínculo
     const service = await Service.findById(serviceId);
     if (!service) {
       return res.status(404).json({ message: "Serviço não encontrado." });
@@ -177,10 +171,8 @@ exports.deleteService = async (req, res) => {
       });
     }
 
-    // 4) Remove o Service do Mongo
     await Service.findByIdAndDelete(serviceId);
 
-    // 5) Remove o subdocumento da lista em Establishment.services
     const idx = establishment.services.findIndex(
       (s) => s._id.toString() === serviceId
     );

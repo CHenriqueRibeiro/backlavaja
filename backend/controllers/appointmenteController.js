@@ -224,7 +224,15 @@ exports.getAppointments = async (req, res) => {
 exports.getAppointmentsByEstablishment = async (req, res) => {
   try {
     const { id } = req.params;
-    const appointments = await Appointment.find({ establishment: id }).lean();
+    const { date } = req.query;
+
+    // Monta o filtro com ou sem data
+    const filter = { establishment: id };
+    if (date) {
+      filter.date = date; // Ex: "2025-05-10"
+    }
+
+    const appointments = await Appointment.find(filter).lean();
 
     const establishment = await Establishment.findById(id).lean();
     if (!establishment) {
@@ -235,18 +243,17 @@ exports.getAppointmentsByEstablishment = async (req, res) => {
 
     for (const appointment of appointments) {
       const service = establishment.services.find(
-        (s) => s._id?.toString() === appointment.service?.toString()
+        (s) => s._id.toString() === appointment.service?.toString()
       );
-
-      if (service) {
-        appointment.serviceName = service.name;
-      }
+      if (service) appointment.serviceName = service.name;
     }
 
     return res.json(appointments);
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "Erro ao buscar agendamentos" });
+    return res
+      .status(500)
+      .json({ message: "Erro ao buscar agendamentos", error: error.message });
   }
 };
 

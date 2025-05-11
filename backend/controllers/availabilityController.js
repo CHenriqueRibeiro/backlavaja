@@ -32,7 +32,6 @@ exports.getAvailabilityByDate = async (req, res) => {
       return res.status(404).json({ error: "Estabelecimento não encontrado" });
     }
 
-    // Correção aqui:
     const diasSemana = [
       "Segunda",
       "Terça",

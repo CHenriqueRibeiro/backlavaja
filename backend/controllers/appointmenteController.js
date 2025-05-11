@@ -226,10 +226,9 @@ exports.getAppointmentsByEstablishment = async (req, res) => {
     const { id } = req.params;
     const { date } = req.query;
 
-    // Monta o filtro com ou sem data
     const filter = { establishment: id };
     if (date) {
-      filter.date = date; // Ex: "2025-05-10"
+      filter.date = date;
     }
 
     const appointments = await Appointment.find(filter).lean();

@@ -32,22 +32,32 @@ exports.getAvailabilityByDate = async (req, res) => {
       return res.status(404).json({ error: "Estabelecimento não encontrado" });
     }
 
-    // Correção aqui:
     const diasSemana = [
+      "Domingo",
       "Segunda",
       "Terça",
       "Quarta",
       "Quinta",
       "Sexta",
       "Sábado",
-      "Domingo",
     ];
 
-    const dateObj = new Date(date);
-    const dayIndex = dateObj.getDay();
+    const dateParts = date.split("-");
+    const localDate = new Date(
+      Number(dateParts[0]),
+      Number(dateParts[1]) - 1,
+      Number(dateParts[2]),
+      12,
+      0,
+      0
+    );
+    const dayIndex = localDate.getDay();
     const dayName = diasSemana[dayIndex];
 
-    const formattedDate = dateObj.toISOString().split("T")[0];
+    const formattedDate = localDate.toISOString().split("T")[0];
+
+    console.log("Data recebida:", date);
+    console.log("Detectado como:", dayName, "-", formattedDate);
 
     const servicesData = [];
 

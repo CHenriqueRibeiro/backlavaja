@@ -35,7 +35,7 @@ const establishmentSchema = new Schema(
           description: { type: String },
           price: { type: Number },
           duration: { type: Number },
-          dailyLimit: { type: Number },
+          //dailyLimit: { type: Number },
           availability: [
             {
               day: {

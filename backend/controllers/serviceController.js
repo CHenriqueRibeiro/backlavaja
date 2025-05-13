@@ -7,7 +7,7 @@ exports.createService = async (req, res) => {
     description,
     price,
     duration,
-    dailyLimit,
+    // dailyLimit,
     availability,
     concurrentService,
     concurrentServiceValue,
@@ -28,7 +28,7 @@ exports.createService = async (req, res) => {
       description,
       price,
       duration,
-      dailyLimit,
+      //dailyLimit,
       availability,
       establishment: establishmentId,
       owner: establishment.owner,
@@ -44,7 +44,7 @@ exports.createService = async (req, res) => {
       description: service.description,
       price: service.price,
       duration: service.duration,
-      dailyLimit: service.dailyLimit,
+      //dailyLimit: service.dailyLimit,
       availability: service.availability,
       concurrentService: service.concurrentService,
       concurrentServiceValue: service.concurrentServiceValue,
@@ -70,7 +70,7 @@ exports.updateService = async (req, res) => {
     description,
     price,
     duration,
-    dailyLimit,
+    // dailyLimit,
     availability,
     concurrentService,
     concurrentServiceValue,
@@ -105,7 +105,7 @@ exports.updateService = async (req, res) => {
     service.description = description ?? service.description;
     service.price = price ?? service.price;
     service.duration = duration ?? service.duration;
-    service.dailyLimit = dailyLimit ?? service.dailyLimit;
+    //service.dailyLimit = dailyLimit ?? service.dailyLimit;
     service.availability = availability ?? service.availability;
     service.concurrentService = concurrentService ?? service.concurrentService;
     service.concurrentServiceValue =
@@ -123,7 +123,7 @@ exports.updateService = async (req, res) => {
         description: service.description,
         price: service.price,
         duration: service.duration,
-        dailyLimit: service.dailyLimit,
+        // dailyLimit: service.dailyLimit,
         availability: service.availability,
         concurrentService: service.concurrentService,
         concurrentServiceValue: service.concurrentServiceValue,

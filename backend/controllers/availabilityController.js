@@ -53,11 +53,7 @@ exports.getAvailabilityByDate = async (req, res) => {
     );
     const dayIndex = localDate.getDay();
     const dayName = diasSemana[dayIndex];
-
     const formattedDate = localDate.toISOString().split("T")[0];
-
-    console.log("Data recebida:", date);
-    console.log("Detectado como:", dayName, "-", formattedDate);
 
     const servicesData = [];
 
@@ -69,16 +65,15 @@ exports.getAvailabilityByDate = async (req, res) => {
       if (!availabilityForDay) continue;
 
       const duration = service.duration;
-      const dailyLimit = service.dailyLimit;
+      const concurrentLimit = service.concurrentService
+        ? service.concurrentServiceValue
+        : 1;
 
       const appointments = await Appointment.find({
         service: service._id,
         establishment: establishment._id,
         date: formattedDate,
       });
-
-      const bookedCount = appointments.length;
-      if (bookedCount >= dailyLimit) continue;
 
       const bookedTimes = appointments.map((app) => ({
         start: app.startTime,
@@ -95,11 +90,11 @@ exports.getAvailabilityByDate = async (req, res) => {
           const slotStart = minutesToTime(start);
           const slotEnd = minutesToTime(start + duration);
 
-          const overlap = bookedTimes.some((bt) =>
+          const overlappingCount = bookedTimes.filter((bt) =>
             timesOverlap(slotStart, slotEnd, bt.start, bt.end)
-          );
+          ).length;
 
-          if (!overlap) {
+          if (overlappingCount < concurrentLimit) {
             availableSlots.push(`${slotStart} - ${slotEnd}`);
           }
 

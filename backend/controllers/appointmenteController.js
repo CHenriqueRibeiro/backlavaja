@@ -102,19 +102,8 @@ exports.bookAppointment = async (req, res) => {
         .json({ message: "Horário indisponível para esse serviço." });
     }
 
-    const agendamentosDoDia = await Appointment.countDocuments({
-      service: serviceId,
-      establishment: establishmentId,
-      date,
-    });
-
-    if (agendamentosDoDia >= selectedService.dailyLimit) {
-      return res
-        .status(400)
-        .json({ message: "Limite diário de agendamentos atingido!" });
-    }
-
-    const existingAppointment = await Appointment.findOne({
+    // Verifica agendamentos simultâneos no mesmo horário
+    const overlappingAppointmentsCount = await Appointment.countDocuments({
       service: serviceId,
       establishment: establishmentId,
       date,
@@ -122,8 +111,15 @@ exports.bookAppointment = async (req, res) => {
       endTime: { $gt: startTime },
     });
 
-    if (existingAppointment) {
-      return res.status(400).json({ message: "Horário já ocupado." });
+    if (
+      (!selectedService.concurrentService &&
+        overlappingAppointmentsCount > 0) ||
+      (selectedService.concurrentService &&
+        overlappingAppointmentsCount >= selectedService.concurrentServiceValue)
+    ) {
+      return res.status(400).json({
+        message: "Horário já atingiu o limite de agendamentos simultâneos.",
+      });
     }
 
     const appointment = new Appointment({
@@ -176,24 +172,27 @@ exports.bookAppointment = async (req, res) => {
       );
     }
 
-    selectedService.availability = selectedService.availability.map((a) => {
-      if (a.day === capitalizedDay) {
-        const updatedHours = a.availableHours.filter((h) => {
-          return !(h.start === startTime && h.end === endTime);
-        });
-        return { ...a.toObject(), availableHours: updatedHours };
-      }
-      return a;
-    });
+    // Atualiza disponibilidade (remove slot se não for concorrente)
+    if (!selectedService.concurrentService) {
+      selectedService.availability = selectedService.availability.map((a) => {
+        if (a.day === capitalizedDay) {
+          const updatedHours = a.availableHours.filter((h) => {
+            return !(h.start === startTime && h.end === endTime);
+          });
+          return { ...a.toObject(), availableHours: updatedHours };
+        }
+        return a;
+      });
 
-    await Establishment.updateOne(
-      { _id: establishmentId, "services._id": serviceId },
-      {
-        $set: {
-          "services.$.availability": selectedService.availability,
-        },
-      }
-    );
+      await Establishment.updateOne(
+        { _id: establishmentId, "services._id": serviceId },
+        {
+          $set: {
+            "services.$.availability": selectedService.availability,
+          },
+        }
+      );
+    }
 
     return res.status(201).json({
       message: "Agendamento realizado com sucesso!",

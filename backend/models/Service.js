@@ -20,7 +20,7 @@ const serviceSchema = new mongoose.Schema(
     },
     dailyLimit: {
       type: Number,
-      required: true,
+      required: false,
     },
     concurrentService: {
       type: Boolean,

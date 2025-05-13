@@ -71,16 +71,21 @@ exports.bookAppointment = async (req, res) => {
       return res.status(404).json({ message: "Serviço não encontrado!" });
     }
 
-    const dayOfWeek = new Date(date).getDay();
+    const [year, month, day] = date.split("-").map(Number);
+    const localDateAtMidnight = new Date(year, month - 1, day, 0, 0, 0);
+
+    const dayOfWeek = localDateAtMidnight.getDay();
+
     const daysOfWeek = [
+      "Domingo",
       "Segunda",
       "Terça",
       "Quarta",
       "Quinta",
       "Sexta",
       "Sábado",
-      "Domingo",
     ];
+
     const capitalizedDay = daysOfWeek[dayOfWeek];
 
     const availabilityDay = selectedService.availability.find(

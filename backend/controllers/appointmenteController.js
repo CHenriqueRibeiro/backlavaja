@@ -26,6 +26,7 @@ exports.bookAppointment = async (req, res) => {
       date,
       startTime,
       endTime,
+      reminderWhatsapp,
     } = req.body;
 
     if (
@@ -102,7 +103,6 @@ exports.bookAppointment = async (req, res) => {
         .json({ message: "Horário indisponível para esse serviço." });
     }
 
-    // Verifica agendamentos simultâneos no mesmo horário
     const overlappingAppointmentsCount = await Appointment.countDocuments({
       service: serviceId,
       establishment: establishmentId,
@@ -134,6 +134,7 @@ exports.bookAppointment = async (req, res) => {
       date,
       startTime,
       endTime,
+      reminderWhatsapp,
     });
 
     await appointment.save();
@@ -172,7 +173,6 @@ exports.bookAppointment = async (req, res) => {
       );
     }
 
-    // Atualiza disponibilidade (remove slot se não for concorrente)
     if (!selectedService.concurrentService) {
       selectedService.availability = selectedService.availability.map((a) => {
         if (a.day === capitalizedDay) {

@@ -5,6 +5,7 @@ const appointmentSchema = new mongoose.Schema({
   clientPhone: { type: String, required: true },
   veiculo: { type: String, required: true },
   serviceName: { type: String, required: true },
+  reminderWhatsapp: { type: Boolean, required: false, default: false },
   price: { type: Number, required: true },
   status: { type: String, required: true, default: "Agendado" },
   service: {

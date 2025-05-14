@@ -224,6 +224,73 @@ exports.getAppointments = async (req, res) => {
     });
   }
 };
+exports.getDashboardReport = async (req, res) => {
+  try {
+    const { establishmentId, startDate, endDate } = req.query;
+
+    if (!establishmentId || !startDate || !endDate) {
+      return res.status(400).json({
+        message: "Parâmetros obrigatórios: establishmentId, startDate, endDate",
+      });
+    }
+
+    const appointments = await Appointment.find({
+      establishment: establishmentId,
+      date: { $gte: startDate, $lte: endDate },
+    });
+
+    const totalRevenue = appointments.reduce(
+      (acc, curr) => acc + curr.price,
+      0
+    );
+
+    const serviceTypesMap = {};
+    const paymentMethodsMap = { Cartao: 0, Dinheiro: 0, Pix: 0 };
+    const reservedHoursMap = {};
+    const weeklyRevenueByDay = {
+      Dom: 0,
+      Seg: 0,
+      Ter: 0,
+      Qua: 0,
+      Qui: 0,
+      Sex: 0,
+      Sáb: 0,
+    };
+
+    appointments.forEach((a) => {
+      if (!serviceTypesMap[a.serviceName]) {
+        serviceTypesMap[a.serviceName] = 0;
+      }
+      serviceTypesMap[a.serviceName]++;
+
+      const hourKey = `${a.startTime.slice(0, 2)}h`;
+      if (!reservedHoursMap[hourKey]) reservedHoursMap[hourKey] = 0;
+      reservedHoursMap[hourKey]++;
+
+      const weekday = new Date(a.date).toLocaleDateString("pt-BR", {
+        weekday: "short",
+      });
+      const formattedDay =
+        weekday.charAt(0).toUpperCase() + weekday.slice(1, 3);
+      if (weeklyRevenueByDay[formattedDay] !== undefined) {
+        weeklyRevenueByDay[formattedDay] += a.price;
+      }
+    });
+
+    return res.json({
+      totalRevenue,
+      serviceTypes: serviceTypesMap,
+      paymentMethods: paymentMethodsMap,
+      reservedHours: reservedHoursMap,
+      weeklyRevenueByDay,
+    });
+  } catch (error) {
+    console.error("Erro no dashboard:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao gerar relatório.", error: error.message });
+  }
+};
 
 exports.getAppointmentsByEstablishment = async (req, res) => {
   try {

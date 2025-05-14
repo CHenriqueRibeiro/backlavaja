@@ -8,6 +8,10 @@ router.get(
   "/appointments/:id",
   appointmentController.getAppointmentsByEstablishment
 );
+router.get(
+  "/appointments/report/dashboard",
+  appointmentController.getDashboardReport
+);
 router.patch(
   "/appointments/:id",
   appointmentController.updateAppointmentStatus

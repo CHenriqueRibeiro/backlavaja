@@ -2,7 +2,6 @@ const { default: mongoose } = require("mongoose");
 const Cost = require("../models/Cost");
 const Establishment = require("../models/Establishment");
 
-// Criar custo
 exports.createCost = async (req, res) => {
   try {
     const { value, type, date, description, observation, establishmentId } =
@@ -38,18 +37,13 @@ exports.updateCost = async (req, res) => {
     const { value, type, date, description, observation, establishmentId } =
       req.body;
 
-    console.log("Recebido costId:", costId);
-    console.log("Recebido establishmentId:", establishmentId);
-
     const establishment = await Establishment.findById(establishmentId);
     if (!establishment) {
-      console.log("Estabelecimento não encontrado");
       return res.status(404).json({ error: "Estabelecimento não encontrado" });
     }
 
     const cost = establishment.costs.id(costId);
     if (!cost) {
-      console.log("Custo não encontrado no array de custos embutidos");
       return res.status(404).json({ error: "Custo não encontrado" });
     }
 
@@ -61,7 +55,6 @@ exports.updateCost = async (req, res) => {
 
     await establishment.save();
 
-    console.log("Custo atualizado com sucesso:", cost);
     res.status(200).json(cost);
   } catch (error) {
     console.error("Erro ao atualizar custo:", error);
@@ -73,9 +66,6 @@ exports.deleteCost = async (req, res) => {
   try {
     const { costId, establishmentId } = req.params;
 
-    console.log("Tentando deletar costId:", costId);
-    console.log("Establishment alvo:", establishmentId);
-
     const establishment = await Establishment.findById(establishmentId);
     if (!establishment) {
       return res.status(404).json({ error: "Estabelecimento não encontrado" });
@@ -86,7 +76,6 @@ exports.deleteCost = async (req, res) => {
     );
 
     if (indexToRemove === -1) {
-      console.log("Custo não encontrado para o ID:", costId);
       return res.status(404).json({ error: "Custo não encontrado" });
     }
 

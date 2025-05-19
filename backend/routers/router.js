@@ -3,6 +3,8 @@ const router = express.Router();
 
 const establishmentRouter = require("./establishment");
 const ownerRouter = require("./owner");
+const costRouter = require("./costRouter");
+const budgetRouter = require("./budgetRouter");
 const loginOwner = require("./authRouter");
 const serviceRouter = require("./servicesRouter");
 const appointmentsRouter = require("./appointmenteRouter");
@@ -13,6 +15,8 @@ router.use("/services", authMiddleware, serviceRouter);
 router.use("/auth", loginOwner);
 router.use("/establishment", authMiddleware, establishmentRouter);
 router.use("/owner", ownerRouter);
+router.use("/cost", costRouter);
+router.use("/budget", budgetRouter);
 router.use("/appointments", appointmentsRouter);
 router.use("/availability", availabilityRouter);
 module.exports = router;

@@ -64,6 +64,40 @@ const establishmentSchema = new Schema(
       ],
       default: [],
     },
+    costs: {
+      type: [
+        {
+          value: { type: Number, required: true },
+          type: { type: String, required: true },
+          date: { type: Date, required: true },
+          description: { type: String },
+          observation: { type: String },
+        },
+      ],
+      default: [],
+    },
+    budgets: [
+      {
+        phone: String,
+        title: String,
+        clientName: String,
+        serviceDescription: String,
+        date: Date,
+        dateValidate: Date,
+        deliveryDate: Date,
+        value: Number,
+        services: [
+          {
+            name: String,
+            value: Number,
+            observation: String,
+          },
+        ],
+        documentUrl: String,
+        createdAt: Date,
+        updatedAt: Date,
+      },
+    ],
     openingHours: {
       open: { type: String, required: true },
       close: { type: String, required: true },

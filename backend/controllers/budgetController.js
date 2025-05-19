@@ -1,9 +1,9 @@
 //const Budget = require("../models/Budget");
 const Establishment = require("../models/Establishment");
-const cloudinary = require("../config/cloudinary");
 const streamifier = require("streamifier");
 
 exports.createBudget = async (req, res) => {
+  const cloudinary = require("../config/cloudinary");
   try {
     const payload = JSON.parse(req.body.data);
     const {

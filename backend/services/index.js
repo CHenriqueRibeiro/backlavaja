@@ -11,6 +11,11 @@ cron.schedule("* * * * *", async () => {
   const now = new Date();
   const targetTime = new Date(now.getTime() + 15 * 60000);
 
+  if (isNaN(targetTime.getTime())) {
+    console.error("targetTime é uma data inválida:", targetTime);
+    return;
+  }
+
   const currentDate = targetTime.toISOString().split("T")[0];
   const targetHour = String(targetTime.getHours()).padStart(2, "0");
   const targetMinute = String(targetTime.getMinutes()).padStart(2, "0");

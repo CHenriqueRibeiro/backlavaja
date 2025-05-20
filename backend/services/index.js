@@ -1,4 +1,4 @@
-const cron = require("node-cron");
+/*const cron = require("node-cron");
 const Appointment = require("../models/Appointment");
 const fetch = require("node-fetch");
 
@@ -61,4 +61,4 @@ cron.schedule("* * * * *", async () => {
   } catch (err) {
     console.error("Erro no cron de lembretes:", err.message);
   }
-});
+});*/

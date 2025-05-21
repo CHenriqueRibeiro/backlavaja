@@ -1,17 +1,22 @@
+// CONTROLLER DE AGENDAMENTOS (atualizado com controle de estoque ao entregar, serviços opcionais nos produtos)
 const mongoose = require("mongoose");
 const fetch = require("node-fetch");
 const Appointment = require("../models/Appointment");
 const Establishment = require("../models/Establishment");
+const Product = require("../models/Product");
+const Service = require("../models/Service");
 
 function subtractOneMinute(timeStr) {
-  const [hours, minutes] = timeStr.split(":").map(Number);
+  const [hours, minutes] = timeStr.split(":".map(Number));
   const date = new Date(0, 0, 0, hours, minutes - 1);
   return date.toTimeString().slice(0, 5);
 }
+
 const formatDateForWhatsApp = (date) => {
   const [year, month, day] = date.split("-");
   return `${day}/${month}/${year}`;
 };
+
 exports.bookAppointment = async (req, res) => {
   try {
     const {
@@ -211,6 +216,111 @@ exports.bookAppointment = async (req, res) => {
   }
 };
 
+exports.updateAppointmentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res
+        .status(400)
+        .json({ message: "O campo 'status' é obrigatório." });
+    }
+
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
+      return res.status(404).json({ message: "Agendamento não encontrado." });
+    }
+
+    if (appointment.status === "Entregue") {
+      return res.status(400).json({
+        message: "Este agendamento já foi finalizado e não pode ser alterado.",
+      });
+    }
+
+    appointment.status = status;
+    await appointment.save();
+
+    if (status?.trim().toLowerCase() === "entregue") {
+      const produtos = await Product.find({
+        estabelecimento: appointment.establishment,
+      });
+
+      for (const produto of produtos) {
+        if (!produto.servicos || produto.servicos.length === 0) continue;
+
+        const uso = produto.servicos.find(
+          (s) => s.service?.toString?.() === appointment.service.toString()
+        );
+
+        if (uso) {
+          produto.quantidadeAtual -= uso.consumoPorServico;
+          if (produto.quantidadeAtual < 0) produto.quantidadeAtual = 0;
+
+          produto.consumoHistorico.push({
+            agendamento: appointment._id,
+            data: new Date(),
+            quantidade: uso.consumoPorServico,
+            service: appointment.service,
+            cliente: appointment.clientName,
+            veiculo: appointment.veiculo,
+          });
+
+          await produto.save();
+        }
+      }
+    }
+
+    const statusMessages = {
+      Iniciado:
+        "Ótima notícia! A lavagem do seu veículo já começou. Em breve ele estará pronto para você.",
+      Agendado:
+        "Seu agendamento foi confirmado com sucesso! Estamos esperando por você no horário combinado.",
+      "Aguardando cliente":
+        "Seu veículo está pronto, aguardamos a sua chegada para finalizarmos o atendimento.",
+      Entregue:
+        "Tudo certo! Seu veículo foi entregue com sucesso. Agradecemos pela preferência 😊",
+      Cancelado:
+        "Seu agendamento foi cancelado. Se precisar reagendar, estaremos à disposição!",
+    };
+
+    const messageToSend =
+      statusMessages[status] ||
+      `O status do seu agendamento foi alterado para: *${status}*`;
+    const sanitizedPhone = `55${appointment.clientPhone.replace(/\D/g, "")}`;
+
+    const whatsappResponse = await fetch(
+      "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          DeviceToken: "b9c02e00-9ad8-4e46-85d5-a1722c118d01",
+          Authorization:
+            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y", // mantenha o seu token real
+        },
+        body: JSON.stringify({ number: sanitizedPhone, text: messageToSend }),
+      }
+    );
+
+    if (!whatsappResponse.ok) {
+      console.error(
+        "Erro ao enviar mensagem de status no WhatsApp:",
+        await whatsappResponse.text()
+      );
+    }
+
+    return res
+      .status(200)
+      .json({ message: "Status atualizado com sucesso.", appointment });
+  } catch (error) {
+    console.error("Erro ao atualizar status do agendamento:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao atualizar status.", error: error.message });
+  }
+};
+
 exports.getAppointments = async (req, res) => {
   try {
     const appointments = await Appointment.find()
@@ -324,79 +434,6 @@ exports.getAppointmentsByEstablishment = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erro ao buscar agendamentos", error: error.message });
-  }
-};
-
-exports.updateAppointmentStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!status) {
-      return res
-        .status(400)
-        .json({ message: "O campo 'status' é obrigatório." });
-    }
-
-    const appointment = await Appointment.findById(id);
-    if (!appointment) {
-      return res.status(404).json({ message: "Agendamento não encontrado." });
-    }
-
-    appointment.status = status;
-    await appointment.save();
-
-    const statusMessages = {
-      Iniciado:
-        "Ótima notícia! A lavagem do seu veículo já começou. Em breve ele estará pronto para você.",
-      Agendado:
-        "Seu agendamento foi confirmado com sucesso! Estamos esperando por você no horário combinado.",
-      "Aguardando cliente":
-        "Seu veículo está pronto, aguardamos a sua chegada para finalizarmos o atendimento.",
-      Entregue:
-        "Tudo certo! Seu veículo foi entregue com sucesso. Agradecemos pela preferência 😊",
-      Cancelado:
-        "Seu agendamento foi cancelado. Se precisar reagendar, estaremos à disposição!",
-    };
-
-    const messageToSend =
-      statusMessages[status] ||
-      `O status do seu agendamento foi alterado para: *${status}*`;
-
-    const sanitizedPhone = `55${appointment.clientPhone.replace(/\D/g, "")}`;
-    const whatsappResponse = await fetch(
-      "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          DeviceToken: "b9c02e00-9ad8-4e46-85d5-a1722c118d01",
-          Authorization:
-            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
-        },
-        body: JSON.stringify({
-          number: sanitizedPhone,
-          text: messageToSend,
-        }),
-      }
-    );
-
-    if (!whatsappResponse.ok) {
-      console.error(
-        "Erro ao enviar mensagem de status no WhatsApp:",
-        await whatsappResponse.text()
-      );
-    }
-
-    return res.status(200).json({
-      message: "Status atualizado com sucesso.",
-      appointment,
-    });
-  } catch (error) {
-    console.error("Erro ao atualizar status do agendamento:", error);
-    return res
-      .status(500)
-      .json({ message: "Erro ao atualizar status.", error: error.message });
   }
 };
 

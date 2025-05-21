@@ -1,15 +1,45 @@
 const Produto = require("../models/Product");
-const Servico = require("../models/Service");
-const Agendamento = require("../models/Appointment");
 const fetch = require("node-fetch");
 
 exports.preverConsumo = async (req, res) => {
   try {
-    const establishmentId =
-      req.user?.establishmentId || "6828d66a69bdf047ec2317bd";
-    const hoje = new Date();
+    const establishmentId = req.params.establishmentId;
 
+    if (!establishmentId) {
+      return res.status(400).json({
+        error: "O parâmetro establishmentId é obrigatório.",
+      });
+    }
+
+    const hoje = new Date();
     const produtos = await Produto.find({ estabelecimento: establishmentId });
+
+    if (!produtos || produtos.length === 0) {
+      return res.status(200).json({
+        resposta:
+          "Nenhum produto cadastrado para este estabelecimento. Não é possível realizar a análise de consumo.",
+      });
+    }
+
+    const produtosComVinculo = produtos.filter(
+      (prod) => Array.isArray(prod.servicos) && prod.servicos.length > 0
+    );
+    if (produtosComVinculo.length === 0) {
+      return res.status(200).json({
+        resposta:
+          "Os produtos ainda não estão vinculados a nenhum serviço. Faça a atribuição antes de gerar a análise.",
+      });
+    }
+
+    const produtosComHistorico = produtosComVinculo.filter(
+      (prod) => prod.consumoHistorico && prod.consumoHistorico.length > 0
+    );
+    if (produtosComHistorico.length === 0) {
+      return res.status(200).json({
+        resposta:
+          "Ainda não há histórico de uso suficiente para gerar a previsão. Execute ao menos um serviço com os produtos para que a JáIA possa realizar a análise.",
+      });
+    }
 
     const listaProdutos = produtos
       .map((prod) => {

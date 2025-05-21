@@ -45,7 +45,22 @@ Abaixo estão os dados dos produtos do estoque:
 
 ${listaProdutos}
 
-Com base nesses dados, gere um resumo para o gestor indicando quando ele deve comprar cada item, focando nos produtos mais críticos (com menos dias restantes). Seja claro e objetivo.
+Com base nesses dados, gere um resumo padronizado para o gestor com os seguintes blocos, sempre na mesma ordem:
+
+1. Relatório de Estoque - DD/MM/AAAA
+2. Produto Crítico: (se houver)
+3. Produto com Estoque Não Crítico: (se houver)
+4. Ação recomendada: (resumo final)
+
+Para cada produto, informe:
+- Quantidade atual
+- Consumo médio por serviço
+- Previsão de término em número de serviços
+- Recomendação de reposição (se necessário)
+
+Se algum produto não tiver histórico, deixe como "indefinido".
+
+Siga sempre este formato.
 `;
 
     const resposta = await fetch("https://api.openai.com/v1/chat/completions", {

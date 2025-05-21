@@ -3,7 +3,7 @@ const Establishment = require("../models/Establishment");
 const Service = require("../models/Service");
 
 exports.createProduct = async (req, res) => {
-  const { name, unidade, quantidadeAtual, servicos } = req.body;
+  const { name, unidade, quantidadeAtual, servicos, preco } = req.body;
   const { establishmentId } = req.params;
 
   try {
@@ -25,6 +25,7 @@ exports.createProduct = async (req, res) => {
     const product = new Product({
       name,
       unidade,
+      preco,
       quantidadeAtual,
       estabelecimento: establishmentId,
       servicos,
@@ -41,7 +42,7 @@ exports.createProduct = async (req, res) => {
 };
 exports.updateProduct = async (req, res) => {
   const { productId } = req.params;
-  const { name, unidade, quantidadeAtual, servicos } = req.body;
+  const { name, unidade, quantidadeAtual, servicos, preco } = req.body;
 
   try {
     const product = await Product.findById(productId);
@@ -49,6 +50,7 @@ exports.updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Produto não encontrado." });
 
     product.name = name;
+    product.preco = preco;
     product.unidade = unidade;
     product.quantidadeAtual = quantidadeAtual;
     product.servicos = [];

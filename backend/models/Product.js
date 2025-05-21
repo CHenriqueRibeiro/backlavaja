@@ -4,6 +4,7 @@ const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   unidade: { type: String, default: "mL" },
   quantidadeAtual: { type: Number, required: true },
+  preco: { type: Number, required: true },
   estabelecimento: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Establishment",

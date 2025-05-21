@@ -11,6 +11,8 @@ router.get(
   "/establishments/:establishmentId/products",
   productsController.getProductsByEstablishment
 );
+router.put("/:productId", productsController.updateProduct);
 
-module.exports = router;
+// Deletar produto
+router.delete("/:productId", productsController.deleteProduct);
 module.exports = router;

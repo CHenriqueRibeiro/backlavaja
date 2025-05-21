@@ -13,7 +13,6 @@ exports.createProduct = async (req, res) => {
         .status(404)
         .json({ message: "Estabelecimento não encontrado." });
 
-    // Validação opcional dos serviços referenciados
     for (const s of servicos) {
       const serviceExists = await Service.findById(s.service);
       if (!serviceExists) {

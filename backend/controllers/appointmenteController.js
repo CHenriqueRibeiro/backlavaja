@@ -1,4 +1,3 @@
-// CONTROLLER DE AGENDAMENTOS (atualizado com controle de estoque ao entregar, serviços opcionais nos produtos)
 const mongoose = require("mongoose");
 const fetch = require("node-fetch");
 const Appointment = require("../models/Appointment");

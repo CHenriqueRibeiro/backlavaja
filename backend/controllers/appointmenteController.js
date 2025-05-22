@@ -3,7 +3,24 @@ const fetch = require("node-fetch");
 const Appointment = require("../models/Appointment");
 const Establishment = require("../models/Establishment");
 const Product = require("../models/Product");
-const Service = require("../models/Service");
+function converterParaML(valor, unidade) {
+  switch (unidade) {
+    case "L":
+      return valor * 1000;
+    default:
+      return valor; // mL, g, unidade permanecem iguais
+  }
+}
+
+function converterConsumoParaUnidadeDoProduto(
+  valor,
+  unidadeConsumo,
+  unidadeProduto
+) {
+  const emML = converterParaML(valor, unidadeConsumo);
+  const divisor = unidadeProduto === "L" ? 1000 : 1;
+  return emML / divisor; // Ex: 250mL / 1000 => 0.25L
+}
 
 function subtractOneMinute(timeStr) {
   const [hours, minutes] = timeStr.split(":".map(Number));
@@ -253,13 +270,19 @@ exports.updateAppointmentStatus = async (req, res) => {
         );
 
         if (uso) {
-          produto.quantidadeAtual -= uso.consumoPorServico;
+          const consumoConvertido = converterConsumoParaUnidadeDoProduto(
+            uso.consumoPorServico,
+            uso.unidadeConsumo || "mL",
+            produto.unidade || "mL"
+          );
+
+          produto.quantidadeAtual -= consumoConvertido;
           if (produto.quantidadeAtual < 0) produto.quantidadeAtual = 0;
 
           produto.consumoHistorico.push({
             agendamento: appointment._id,
             data: new Date(),
-            quantidade: uso.consumoPorServico,
+            quantidade: consumoConvertido,
             service: appointment.service,
             cliente: appointment.clientName,
             veiculo: appointment.veiculo,

@@ -1,6 +1,21 @@
 const Produto = require("../models/Product");
 const fetch = require("node-fetch");
 
+function converterParaML(valor, unidade) {
+  switch (unidade) {
+    case "L":
+      return valor * 1000;
+    case "mL":
+      return valor;
+    case "g":
+      return valor;
+    case "unidade":
+      return valor;
+    default:
+      return valor;
+  }
+}
+
 exports.preverConsumo = async (req, res) => {
   try {
     const establishmentId = req.params.establishmentId;
@@ -46,26 +61,33 @@ exports.preverConsumo = async (req, res) => {
         const historico = prod.consumoHistorico || [];
 
         if (historico.length === 0) {
-          return `Produto: ${prod.name}, Quantidade atual: ${prod.quantidadeAtual}mL, Consumo médio por serviço: 0.0mL, Vai acabar em: indefinido serviços`;
+          return `Produto: ${prod.name}, Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}, Consumo médio por serviço: 0 ml, Vai acabar em: indefinido serviços`;
         }
 
-        const totalConsumido = historico.reduce(
-          (sum, h) => sum + h.quantidade,
-          0
+        const totalConsumido = historico.reduce((sum, h) => {
+          return sum + h.quantidade; // já está salvo em mL
+        }, 0);
+
+        const quantidadeAtualConvertida = converterParaML(
+          prod.quantidadeAtual,
+          prod.unidade || "mL"
         );
+
         const totalServicos = historico.length;
-        const consumoPorServico = totalConsumido / totalServicos;
+        const consumoPorServico = (totalConsumido / totalServicos) * 1000;
+
+        const consumoFormatado = `${consumoPorServico} ml`;
 
         const servicosRestantes =
           consumoPorServico > 0
-            ? Math.floor(prod.quantidadeAtual / consumoPorServico)
+            ? Math.floor(quantidadeAtualConvertida / consumoPorServico)
             : "indefinido";
 
-        return `Produto: ${prod.name}, Quantidade atual: ${
-          prod.quantidadeAtual
-        }mL, Consumo médio por serviço: ${consumoPorServico.toFixed(
-          1
-        )}mL, Vai acabar em: ${servicosRestantes} serviços`;
+        const quantidadeFormatada = prod.quantidadeAtual
+          ? `${prod.quantidadeAtual} ${prod.unidade}`
+          : `${prod.quantidadeAtual.toFixed(1)} ${prod.unidade}`;
+
+        return `Produto: ${prod.name}, Quantidade atual: ${quantidadeFormatada}, Consumo médio por serviço: ${consumoFormatado}, Vai acabar em: ${servicosRestantes} serviços`;
       })
       .join("\n");
 

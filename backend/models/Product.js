@@ -14,6 +14,7 @@ const productSchema = new mongoose.Schema({
     {
       service: { type: mongoose.Schema.Types.ObjectId, ref: "Service" },
       consumoPorServico: Number,
+      unidadeConsumo: { type: String, default: "mL" },
     },
   ],
   consumoHistorico: [

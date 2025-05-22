@@ -28,7 +28,11 @@ exports.createProduct = async (req, res) => {
       preco,
       quantidadeAtual,
       estabelecimento: establishmentId,
-      servicos,
+      servicos: servicos.map((s) => ({
+        service: s.service,
+        consumoPorServico: s.consumoPorServico,
+        unidadeConsumo: s.unidadeConsumo || "mL",
+      })),
     });
 
     await product.save();
@@ -66,6 +70,7 @@ exports.updateProduct = async (req, res) => {
         product.servicos.push({
           service: s.service,
           consumoPorServico: s.consumoPorServico,
+          unidadeConsumo: s.unidadeConsumo || "mL",
         });
       }
     }

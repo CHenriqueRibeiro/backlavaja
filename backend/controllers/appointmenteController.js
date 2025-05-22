@@ -8,7 +8,7 @@ function converterParaML(valor, unidade) {
     case "L":
       return valor * 1000;
     default:
-      return valor; // mL, g, unidade permanecem iguais
+      return valor;
   }
 }
 
@@ -19,7 +19,7 @@ function converterConsumoParaUnidadeDoProduto(
 ) {
   const emML = converterParaML(valor, unidadeConsumo);
   const divisor = unidadeProduto === "L" ? 1000 : 1;
-  return emML / divisor; // Ex: 250mL / 1000 => 0.25L
+  return emML / divisor;
 }
 
 function subtractOneMinute(timeStr) {

@@ -16,6 +16,18 @@ function converterParaML(valor, unidade) {
   }
 }
 
+function ajustarHistoricoParaML(historico, unidadeProduto) {
+  return historico.map((h) => {
+    const quantidade =
+      typeof h.quantidade === "number"
+        ? h.quantidade
+        : parseFloat(h.quantidade);
+    const quantidadeConvertida =
+      unidadeProduto === "L" ? quantidade * 1000 : quantidade;
+    return { ...h, quantidade: quantidadeConvertida };
+  });
+}
+
 exports.preverConsumo = async (req, res) => {
   try {
     const establishmentId = req.params.establishmentId;
@@ -58,34 +70,38 @@ exports.preverConsumo = async (req, res) => {
 
     const listaProdutos = produtos
       .map((prod) => {
-        const historico = prod.consumoHistorico || [];
+        const historicoOriginal = prod.consumoHistorico || [];
 
-        if (historico.length === 0) {
+        if (historicoOriginal.length === 0) {
           return `Produto: ${prod.name}, Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}, Consumo médio por serviço: 0 ml, Vai acabar em: indefinido serviços`;
         }
 
-        const totalConsumido = historico.reduce((sum, h) => {
-          return sum + h.quantidade; // já está salvo em mL
-        }, 0);
+        const historico = ajustarHistoricoParaML(
+          historicoOriginal,
+          prod.unidade
+        );
+        const totalConsumido = historico.reduce(
+          (sum, h) => sum + h.quantidade,
+          0
+        );
+        const totalServicos = historico.length;
+        const consumoPorServico = totalConsumido / totalServicos;
 
         const quantidadeAtualConvertida = converterParaML(
           prod.quantidadeAtual,
           prod.unidade || "mL"
         );
 
-        const totalServicos = historico.length;
-        const consumoPorServico = (totalConsumido / totalServicos) * 1000;
-
-        const consumoFormatado = `${consumoPorServico} ml`;
-
         const servicosRestantes =
           consumoPorServico > 0
             ? Math.floor(quantidadeAtualConvertida / consumoPorServico)
             : "indefinido";
 
-        const quantidadeFormatada = prod.quantidadeAtual
+        const quantidadeFormatada = Number.isInteger(prod.quantidadeAtual)
           ? `${prod.quantidadeAtual} ${prod.unidade}`
           : `${prod.quantidadeAtual.toFixed(1)} ${prod.unidade}`;
+
+        const consumoFormatado = `${consumoPorServico} ml`;
 
         return `Produto: ${prod.name}, Quantidade atual: ${quantidadeFormatada}, Consumo médio por serviço: ${consumoFormatado}, Vai acabar em: ${servicosRestantes} serviços`;
       })

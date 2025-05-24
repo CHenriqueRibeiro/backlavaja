@@ -9,4 +9,9 @@ router.get(
   iaController.analiseFinanceiraComServicos
 );
 
+router.get(
+  "/mais-frequentes/:establishmentId",
+  iaController.clientesMaisFrequentes
+);
+
 module.exports = router;

@@ -253,3 +253,140 @@ Evite repetir os dados, seja direto como um consultor financeiro.
     res.status(500).json({ message: "Erro ao realizar análise financeira." });
   }
 };
+
+exports.clientesMaisFrequentes = async (req, res) => {
+  try {
+    const { establishmentId } = req.params;
+
+    const hoje = new Date();
+    const primeiroDiaDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+    const agendamentos = await Appointment.find({
+      establishment: establishmentId,
+      status: "Entregue",
+      date: {
+        $gte: primeiroDiaDoMes.toISOString().split("T")[0],
+        $lte: hoje.toISOString().split("T")[0],
+      },
+    });
+
+    if (agendamentos.length === 0) {
+      return res.status(200).json({
+        resposta:
+          "Nenhum agendamento entregue neste período. Não é possível gerar o relatório.",
+      });
+    }
+
+    const clientes = {};
+
+    for (const a of agendamentos) {
+      const chave = a.clientPhone.trim();
+      const nome = a.clientName.trim();
+
+      if (!clientes[chave]) {
+        clientes[chave] = {
+          nome,
+          telefone: chave,
+          veiculo: a.veiculo,
+          servicos: {},
+          totalGasto: 0,
+        };
+      }
+
+      if (!clientes[chave].servicos[a.serviceName]) {
+        clientes[chave].servicos[a.serviceName] = [];
+      }
+
+      clientes[chave].servicos[a.serviceName].push({
+        horario: a.startTime,
+        preco: a.price,
+      });
+
+      clientes[chave].totalGasto += a.price;
+    }
+
+    const topClientes = Object.values(clientes)
+      .filter((c) => Object.keys(c.servicos).length > 0)
+      .map((c) => {
+        const servicoMaisFeito = Object.entries(c.servicos).sort(
+          (a, b) => b[1].length - a[1].length
+        )[0];
+
+        const [nomeServico, registros] = servicoMaisFeito;
+        const mediaPreco = (
+          registros.reduce((sum, r) => sum + r.preco, 0) / registros.length
+        ).toFixed(2);
+        const horarios = registros.map((r) => r.horario);
+
+        const horarioMaisComum = [...new Set(horarios)].sort(
+          (a, b) =>
+            horarios.filter((h) => h === b).length -
+            horarios.filter((h) => h === a).length
+        )[0];
+
+        return {
+          nome: c.nome,
+          telefone: c.telefone,
+          veiculo: c.veiculo,
+          servico: nomeServico,
+          vezes: registros.length,
+          precoMedio: mediaPreco,
+          horarioMaisComum,
+          totalGasto: c.totalGasto,
+        };
+      })
+      .sort((a, b) => b.vezes - a.vezes || b.totalGasto - a.totalGasto)
+      .slice(0, 5);
+
+    if (topClientes.length === 0) {
+      return res.status(200).json({
+        resposta:
+          "Nenhum cliente com dados suficientes para análise neste período.",
+      });
+    }
+
+    const listaFormatada = topClientes
+      .map((c, i) => {
+        return `Cliente ${i + 1}:
+- Nome: ${c.nome}
+- Telefone: ${c.telefone}
+- Veículo: ${c.veiculo}
+- Serviço mais feito: ${c.servico} (${c.vezes}x)
+- Horário mais comum: ${c.horarioMaisComum}
+- Valor médio por serviço: R$ ${c.precoMedio}`;
+      })
+      .join("\n\n");
+
+    const prompt = `Hoje é ${hoje.toLocaleDateString()}
+Clientes mais frequentes do mês atual até hoje:
+
+${listaFormatada}
+
+Com base nos dados acima, para cada cliente individualmente, gere uma sugestão de benefício ou programa de fidelização personalizado. A resposta deve manter o mesmo formato de lista, com os dados do cliente primeiro, e a sugestão logo abaixo.`;
+
+    const respostaIA = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: prompt }],
+        }),
+      }
+    );
+
+    const resultado = await respostaIA.json();
+    const mensagemIA = resultado.choices?.[0]?.message?.content;
+
+    res.status(200).json({ resposta: mensagemIA });
+  } catch (err) {
+    console.error("Erro na análise de clientes frequentes:", err);
+    res
+      .status(500)
+      .json({ message: "Erro ao processar dados de clientes frequentes." });
+  }
+};

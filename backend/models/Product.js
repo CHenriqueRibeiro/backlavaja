@@ -31,6 +31,7 @@ const productSchema = new mongoose.Schema({
       },
       cliente: String,
       veiculo: String,
+      telefone: String,
     },
   ],
 });

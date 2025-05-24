@@ -286,6 +286,7 @@ exports.updateAppointmentStatus = async (req, res) => {
             service: appointment.service,
             cliente: appointment.clientName,
             veiculo: appointment.veiculo,
+            telefone: appointment.clientPhone,
           });
 
           await produto.save();

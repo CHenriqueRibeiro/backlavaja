@@ -4,5 +4,9 @@ const iaController = require("../controllers/iaController");
 //const authMiddleware = require("../middleware/auth");
 
 router.get("/prever-consumo/:establishmentId", iaController.preverConsumo);
+router.get(
+  "/analise-com-servicos/:establishmentId",
+  iaController.analiseFinanceiraComServicos
+);
 
 module.exports = router;

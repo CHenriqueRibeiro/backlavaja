@@ -1,4 +1,8 @@
 const Produto = require("../models/Product");
+const Appointment = require("../models/Appointment");
+const Cost = require("../models/Cost");
+const Service = require("../models/Service");
+const Establishment = require("../models/Establishment");
 const fetch = require("node-fetch");
 
 function converterParaML(valor, unidade) {
@@ -150,5 +154,97 @@ Siga sempre este formato.
   } catch (err) {
     console.error("Erro na previsão com IA:", err);
     res.status(500).json({ error: "Erro ao processar previsão de consumo." });
+  }
+};
+
+exports.analiseFinanceiraComServicos = async (req, res) => {
+  try {
+    const { establishmentId } = req.params;
+
+    const estabelecimento = await Establishment.findById(establishmentId);
+    const nomeEstabelecimento =
+      estabelecimento?.nameEstablishment || "Estabelecimento";
+
+    const agendamentos = await Appointment.find({
+      establishment: establishmentId,
+      status: "Entregue",
+    });
+    const receitaTotal = agendamentos.reduce((sum, a) => sum + a.price, 0);
+
+    const custosManuais = await Cost.find({ establishment: establishmentId });
+    const custoManualTotal = custosManuais.reduce((sum, c) => sum + c.value, 0);
+
+    const produtos = await Produto.find({ estabelecimento: establishmentId });
+    let custoProdutosTotal = 0;
+
+    for (const produto of produtos) {
+      if (produto.entradas && Array.isArray(produto.entradas)) {
+        for (const entrada of produto.entradas) {
+          const preco = Number(entrada.precoUnitario) || 0;
+          custoProdutosTotal += preco;
+        }
+      }
+    }
+
+    const custoTotal = custoManualTotal + custoProdutosTotal;
+    const lucroOuPrejuizo = receitaTotal - custoTotal;
+
+    const servicos = await Service.find({ establishment: establishmentId });
+    const listaServicos = servicos
+      .map((s) => `- ${s.name}: R$ ${s.price.toFixed(2)}`)
+      .join("\n");
+
+    const prompt = `
+Estabelecimento: ${nomeEstabelecimento}
+
+Resumo financeiro atual:
+- Receita total: R$ ${receitaTotal.toFixed(2)}
+- Custo com produtos: R$ ${custoProdutosTotal.toFixed(2)}
+- Custo manual: R$ ${custoManualTotal.toFixed(2)}
+- Custo total: R$ ${custoTotal.toFixed(2)}
+- Lucro ou prejuízo: R$ ${lucroOuPrejuizo.toFixed(2)}
+
+Serviços cadastrados:
+${listaServicos}
+
+Com base nesses dados, responda:
+1. O estabelecimento está com lucro ou prejuízo? Quanto?
+2. Quantos serviços de cada tipo seriam necessários para cobrir os custos (break-even)?
+3. Qual serviço tem o melhor retorno financeiro por unidade?
+4. Dê recomendações objetivas ao gestor para melhorar o resultado financeiro.
+Evite repetir os dados, seja direto como um consultor financeiro.
+`;
+
+    const respostaIA = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: prompt }],
+        }),
+      }
+    );
+
+    const resultado = await respostaIA.json();
+    const mensagemIA = resultado.choices?.[0]?.message?.content;
+
+    res.status(200).json({
+      resposta: mensagemIA,
+      dados: {
+        receitaTotal,
+        custoManualTotal,
+        custoProdutosTotal,
+        custoTotal,
+        lucroOuPrejuizo,
+      },
+    });
+  } catch (err) {
+    console.error("Erro na análise financeira com serviços:", err);
+    res.status(500).json({ message: "Erro ao realizar análise financeira." });
   }
 };

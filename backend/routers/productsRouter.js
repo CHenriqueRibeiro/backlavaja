@@ -14,4 +14,6 @@ router.get(
 router.put("/:productId", productsController.updateProduct);
 
 router.delete("/:productId", productsController.deleteProduct);
+router.patch("/products/:productId/repor", productsController.reporEstoque);
+
 module.exports = router;

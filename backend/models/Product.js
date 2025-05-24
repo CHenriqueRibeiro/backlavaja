@@ -34,6 +34,14 @@ const productSchema = new mongoose.Schema({
       telefone: String,
     },
   ],
+  entradas: [
+    {
+      data: { type: Date, default: Date.now },
+      quantidade: { type: Number, required: true },
+      precoUnitario: { type: Number, required: true },
+      observacao: { type: String },
+    },
+  ],
 });
 
 module.exports = mongoose.model("Product", productSchema);

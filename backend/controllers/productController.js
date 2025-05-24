@@ -33,6 +33,14 @@ exports.createProduct = async (req, res) => {
         consumoPorServico: s.consumoPorServico,
         unidadeConsumo: s.unidadeConsumo || "mL",
       })),
+      entradas: [
+        {
+          quantidade: quantidadeAtual,
+          precoUnitario: preco,
+          observacao: "Entrada inicial do produto",
+          data: new Date(),
+        },
+      ],
     });
 
     await product.save();
@@ -44,9 +52,10 @@ exports.createProduct = async (req, res) => {
     return res.status(500).json({ message: "Erro interno ao criar produto." });
   }
 };
+
 exports.updateProduct = async (req, res) => {
   const { productId } = req.params;
-  const { name, unidade, quantidadeAtual, servicos, preco } = req.body;
+  const { name, unidade, preco, servicos } = req.body;
 
   try {
     const product = await Product.findById(productId);
@@ -56,7 +65,6 @@ exports.updateProduct = async (req, res) => {
     product.name = name;
     product.preco = preco;
     product.unidade = unidade;
-    product.quantidadeAtual = quantidadeAtual;
     product.servicos = [];
 
     if (Array.isArray(servicos)) {
@@ -86,6 +94,42 @@ exports.updateProduct = async (req, res) => {
       .json({ message: "Erro interno ao atualizar produto." });
   }
 };
+exports.reporEstoque = async (req, res) => {
+  const { productId } = req.params;
+  const { quantidade, precoUnitario, observacao } = req.body;
+
+  if (!quantidade || !precoUnitario) {
+    return res
+      .status(400)
+      .json({ message: "Informe quantidade e preço unitário." });
+  }
+
+  try {
+    const product = await Product.findById(productId);
+    if (!product)
+      return res.status(404).json({ message: "Produto não encontrado." });
+
+    product.quantidadeAtual += quantidade;
+
+    product.entradas = product.entradas || [];
+    product.entradas.push({
+      quantidade,
+      precoUnitario,
+      observacao,
+      data: new Date(),
+    });
+
+    await product.save();
+    return res.status(200).json({
+      message: "Reposição registrada com sucesso.",
+      produto: product,
+    });
+  } catch (error) {
+    console.error("Erro ao repor estoque:", error);
+    return res.status(500).json({ message: "Erro interno ao repor estoque." });
+  }
+};
+
 exports.deleteProduct = async (req, res) => {
   const { productId } = req.params;
 

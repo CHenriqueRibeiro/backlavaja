@@ -194,6 +194,11 @@ exports.analiseFinanceiraComServicos = async (req, res) => {
       .map((s) => `- ${s.name}: R$ ${s.price.toFixed(2)}`)
       .join("\n");
 
+    let perguntaBreakEven = "";
+    if (receitaTotal < custoTotal) {
+      perguntaBreakEven = `2. Quantos serviços de cada tipo seriam necessários para cobrir os custos (break-even)?`;
+    }
+
     const prompt = `
 Estabelecimento: ${nomeEstabelecimento}
 
@@ -209,7 +214,7 @@ ${listaServicos}
 
 Com base nesses dados, responda:
 1. O estabelecimento está com lucro ou prejuízo? Quanto?
-2. Quantos serviços de cada tipo seriam necessários para cobrir os custos (break-even)?
+${perguntaBreakEven}
 3. Qual serviço tem o melhor retorno financeiro por unidade?
 4. Dê recomendações objetivas ao gestor para melhorar o resultado financeiro.
 Evite repetir os dados, seja direto como um consultor financeiro.

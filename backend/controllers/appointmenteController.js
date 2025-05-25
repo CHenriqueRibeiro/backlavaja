@@ -23,7 +23,7 @@ function converterConsumoParaUnidadeDoProduto(
 }
 
 function subtractOneMinute(timeStr) {
-  const [hours, minutes] = timeStr.split(":".map(Number));
+  const [hours, minutes] = timeStr.split(":").map(Number);
   const date = new Date(0, 0, 0, hours, minutes - 1);
   return date.toTimeString().slice(0, 5);
 }

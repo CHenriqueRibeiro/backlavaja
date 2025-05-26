@@ -24,9 +24,7 @@ const loginOwner = async (req, res) => {
       return res.status(400).json({ message: "Senha incorreta!" });
     }
 
-    const token = jwt.sign({ ownerId: owner._id }, SECRET_KEY, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign({ ownerId: owner._id }, SECRET_KEY);
 
     res.json({
       message: "Login bem-sucedido!",
@@ -43,4 +41,8 @@ const loginOwner = async (req, res) => {
   }
 };
 
-module.exports = { loginOwner };
+const logoutOwner = async (req, res) => {
+  return res.status(200).json({ message: "Logout realizado com sucesso." });
+};
+
+module.exports = { loginOwner, logoutOwner };

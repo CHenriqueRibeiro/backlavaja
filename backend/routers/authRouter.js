@@ -1,7 +1,7 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { loginOwner } = require('../controllers/loginController');
+const { loginOwner, logoutOwner } = require("../controllers/loginController");
 
-router.post('/login', loginOwner);
-
+router.post("/login", loginOwner);
+router.post("/logout", logoutOwner);
 module.exports = router;

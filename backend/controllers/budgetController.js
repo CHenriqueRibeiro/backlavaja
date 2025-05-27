@@ -8,7 +8,6 @@ exports.createBudget = async (req, res) => {
     const payload = JSON.parse(req.body.data);
     const {
       phone,
-      title,
       clientName,
       serviceDescription,
       establishmentId,
@@ -17,6 +16,13 @@ exports.createBudget = async (req, res) => {
       deliveryDate,
       value,
       services,
+      plate,
+      brand,
+      model,
+      year,
+      referencePoint,
+      address,
+      observation,
     } = payload;
 
     if (!req.file || !req.file.buffer) {
@@ -47,9 +53,15 @@ exports.createBudget = async (req, res) => {
 
     const newBudget = {
       phone,
-      title,
       clientName,
       serviceDescription,
+      plate,
+      brand,
+      model,
+      year,
+      referencePoint,
+      address,
+      observation,
       date: date || new Date(),
       dateValidate: dateValidate || new Date(),
       deliveryDate: deliveryDate || new Date(),

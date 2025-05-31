@@ -79,7 +79,7 @@ exports.createBudget = async (req, res) => {
     await establishment.save();
 
     const addedBudget = establishment.budgets[establishment.budgets.length - 1];
-    const publicLink = `https://lavaja.up.railway.app/orcamento?id=${addedBudget._id}`;
+    const publicLink = `https://adminlavaja.vercel.app/orcamento?id=${addedBudget._id}`;
     try {
       const controller = new AbortController();
       const sanitizedPhone = phone.replace(/\D/g, "");

@@ -8,5 +8,10 @@ router.delete(
   "/budget/:establishmentId/:budgetId",
   budgetController.deleteBudget
 );
-
+router.get("/budget/public/:budgetId", budgetController.getPublicBudget);
+router.patch(
+  "/budget/sign/:budgetId",
+  upload.single("file"),
+  budgetController.signBudget
+);
 module.exports = router;

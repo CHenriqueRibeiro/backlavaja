@@ -94,10 +94,12 @@ const establishmentSchema = new Schema(
           },
         ],
         documentUrl: String,
-        createdAt: Date,
+        signatureUrl: { type: String, default: "" },
+        signedDocumentUrl: { type: String, default: "" },
         updatedAt: Date,
       },
     ],
+
     openingHours: {
       open: { type: String, required: true },
       close: { type: String, required: true },

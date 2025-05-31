@@ -25,6 +25,7 @@
     "node-cron": "^4.0.4",
     "node-fetch": "^2.7.0",
     "nodemon": "^3.1.9",
+    "pdf-lib": "^1.17.1",
     "streamifier": "^0.1.1"
   }
 }

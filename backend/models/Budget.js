@@ -22,6 +22,8 @@ const budgetSchema = new mongoose.Schema(
       ref: "Establishment",
       required: true,
     },
+    signatureUrl: { type: String },
+    signedDocumentUrl: { type: String },
     services: [
       {
         name: { type: String, required: true },

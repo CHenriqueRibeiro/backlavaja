@@ -1,8 +1,9 @@
 //const Budget = require("../models/Budget");
-const fetch = require("node-fetch");
+const fetch = require("node-fetch"); // importe o método para acessar o io global
 const { PDFDocument } = require("pdf-lib");
 const Establishment = require("../models/Establishment");
 const streamifier = require("streamifier");
+const { getIO } = require("../config/socket");
 
 exports.createBudget = async (req, res) => {
   const cloudinary = require("../config/cloudinary");
@@ -79,32 +80,32 @@ exports.createBudget = async (req, res) => {
     await establishment.save();
 
     const addedBudget = establishment.budgets[establishment.budgets.length - 1];
-    const publicLink = `https://adminlavaja.vercel.app/orcamento?id=${addedBudget._id}`;
+    const publicLink = `http://localhost:5173/orcamento?id=${addedBudget._id}`;
     try {
       const controller = new AbortController();
       const sanitizedPhone = phone.replace(/\D/g, "");
+      console.log("Enviando WhatsApp para:", sanitizedPhone);
       const whatsappResponse = await fetch(
         "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            DeviceToken: "b9c02e00-9ad8-4e46-85d5-a1722c118d01",
+            DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
             Authorization:
               "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
             signal: controller.signal,
           },
           body: JSON.stringify({
             number: `55${sanitizedPhone}`,
-            message: `Olá ${clientName}! Seu orçamento está disponível no link: ${publicLink}`,
+            text: `Olá ${clientName}!\n\nSeu orçamento está disponível no link abaixo:\n\n${publicLink}`,
           }),
         }
       );
 
       if (!whatsappResponse.ok) {
-        console.error("Erro na API Brasil:", await whatsappResponse.text());
-      } else {
-        const whatsappResult = await whatsappResponse.json();
+        const errorText = await whatsappResponse.text();
+        console.error("Erro na API Brasil:", errorText);
       }
     } catch (err) {
       if (err.name === "AbortError") {
@@ -174,6 +175,8 @@ exports.getPublicBudget = async (req, res) => {
   }
 };
 
+// Adicione isso no topo (após os requires do Express, Cloudinary etc.)
+
 exports.signBudget = async (req, res) => {
   const cloudinary = require("../config/cloudinary");
   try {
@@ -194,6 +197,7 @@ exports.signBudget = async (req, res) => {
         .json({ error: "Assinatura não enviada corretamente" });
     }
 
+    // 1️⃣ Upload da assinatura
     const signatureResult = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -212,18 +216,20 @@ exports.signBudget = async (req, res) => {
     budget.signatureUrl = signatureResult.secure_url;
     budget.updatedAt = new Date();
 
+    // 2️⃣ Baixa o PDF original
     const pdfResponse = await fetch(budget.documentUrl);
     const pdfBuffer = await pdfResponse.arrayBuffer();
 
+    // 3️⃣ Baixa a imagem da assinatura
     const signatureResponse = await fetch(budget.signatureUrl);
     const signatureBuffer = await signatureResponse.arrayBuffer();
 
+    // 4️⃣ Usa pdf-lib para colocar a assinatura no PDF
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const signatureImage = await pdfDoc.embedPng(signatureBuffer);
 
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
-
     firstPage.drawImage(signatureImage, {
       x: 50,
       y: 50,
@@ -233,6 +239,7 @@ exports.signBudget = async (req, res) => {
 
     const signedPdfBytes = await pdfDoc.save();
 
+    // 5️⃣ Upload do PDF assinado
     const signedPdfUpload = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -252,8 +259,15 @@ exports.signBudget = async (req, res) => {
     });
 
     budget.signedDocumentUrl = signedPdfUpload.secure_url;
-
     await establishment.save();
+
+    // 🚀 Emitir evento Socket.IO aqui
+    const io = getIO(); // chama a função para obter o io
+    io.emit("budgetSigned", {
+      budgetId: budget._id,
+      signatureUrl: budget.signatureUrl,
+      signedDocumentUrl: budget.signedDocumentUrl,
+    });
 
     res.status(200).json({
       message: "Assinatura enviada e documento assinado gerado com sucesso",

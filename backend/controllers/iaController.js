@@ -55,6 +55,7 @@ exports.preverConsumo = async (req, res) => {
     const produtosComVinculo = produtos.filter(
       (prod) => Array.isArray(prod.servicos) && prod.servicos.length > 0
     );
+
     if (produtosComVinculo.length === 0) {
       return res.status(200).json({
         resposta:
@@ -65,6 +66,7 @@ exports.preverConsumo = async (req, res) => {
     const produtosComHistorico = produtosComVinculo.filter(
       (prod) => prod.consumoHistorico && prod.consumoHistorico.length > 0
     );
+
     if (produtosComHistorico.length === 0) {
       return res.status(200).json({
         resposta:
@@ -72,44 +74,61 @@ exports.preverConsumo = async (req, res) => {
       });
     }
 
-    const listaProdutos = produtos
+    const listaProdutos = produtosComHistorico
       .map((prod) => {
         const historicoOriginal = prod.consumoHistorico || [];
+        const quantidadeAtualConvertida = converterParaML(
+          prod.quantidadeAtual,
+          prod.unidade || "mL"
+        );
 
         if (historicoOriginal.length === 0) {
-          return `Produto: ${prod.name}, Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}, Consumo médio por serviço: 0 ml, Vai acabar em: indefinido serviços`;
+          return `Produto: ${prod.name}
+- Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}
+- Consumo médio por serviço: 0 ml
+- Previsão de término:
+  - Indefinido`;
         }
 
         const historico = ajustarHistoricoParaML(
           historicoOriginal,
           prod.unidade
         );
-        const totalConsumido = historico.reduce(
-          (sum, h) => sum + h.quantidade,
-          0
-        );
-        const totalServicos = historico.length;
-        const consumoPorServico = totalConsumido / totalServicos;
 
-        const quantidadeAtualConvertida = converterParaML(
-          prod.quantidadeAtual,
-          prod.unidade || "mL"
-        );
+        // Agrupa o histórico por serviço
+        const historicoPorServico = {};
+        historico.forEach((registro) => {
+          const nomeServico = registro.nomeServico || "Indefinido";
+          if (!historicoPorServico[nomeServico]) {
+            historicoPorServico[nomeServico] = [];
+          }
+          historicoPorServico[nomeServico].push(registro.quantidade);
+        });
 
-        const servicosRestantes =
-          consumoPorServico > 0
-            ? Math.floor(quantidadeAtualConvertida / consumoPorServico)
-            : "indefinido";
+        // Calcula o consumo médio e previsão de término por serviço
+        const consumoPorServicoDetalhado = Object.entries(historicoPorServico)
+          .map(([nomeServico, consumos]) => {
+            const totalServico = consumos.reduce((sum, q) => sum + q, 0);
+            const mediaServico = totalServico / consumos.length;
+            const servicosRestantes =
+              mediaServico > 0
+                ? Math.floor(quantidadeAtualConvertida / mediaServico)
+                : "indefinido";
+            return `  - ${nomeServico}: ${servicosRestantes} serviços`;
+          })
+          .join("\n");
 
         const quantidadeFormatada = Number.isInteger(prod.quantidadeAtual)
           ? `${prod.quantidadeAtual} ${prod.unidade}`
           : `${prod.quantidadeAtual.toFixed(1)} ${prod.unidade}`;
 
-        const consumoFormatado = `${consumoPorServico} ml`;
-
-        return `Produto: ${prod.name}, Quantidade atual: ${quantidadeFormatada}, Consumo médio por serviço: ${consumoFormatado}, Vai acabar em: ${servicosRestantes} serviços`;
+        return `Produto: ${prod.name}
+- Quantidade atual: ${quantidadeFormatada}
+- Consumo médio por serviço: consulte detalhamento abaixo
+- Previsão de término:
+${consumoPorServicoDetalhado}`;
       })
-      .join("\n");
+      .join("\n\n");
 
     const prompt = `
 Hoje é ${hoje.toLocaleDateString()}.
@@ -127,7 +146,7 @@ Com base nesses dados, gere um resumo padronizado para o gestor com os seguintes
 Para cada produto, informe:
 - Quantidade atual
 - Consumo médio por serviço
-- Previsão de término em número de serviços
+- Previsão de término em número de serviços por serviço vinculado
 - Recomendação de reposição (se necessário)
 
 Se algum produto não tiver histórico, deixe como "indefinido".

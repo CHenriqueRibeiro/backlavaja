@@ -1,5 +1,5 @@
 //const Budget = require("../models/Budget");
-const fetch = require("node-fetch"); // importe o método para acessar o io global
+const fetch = require("node-fetch");
 const { PDFDocument } = require("pdf-lib");
 const Establishment = require("../models/Establishment");
 const streamifier = require("streamifier");
@@ -38,7 +38,6 @@ exports.createBudget = async (req, res) => {
     if (!establishment) {
       return res.status(404).json({ error: "Estabelecimento não encontrado" });
     }
-
     const result = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -80,11 +79,16 @@ exports.createBudget = async (req, res) => {
     await establishment.save();
 
     const addedBudget = establishment.budgets[establishment.budgets.length - 1];
-    const publicLink = `https://adminlavaja.vercel.app/orcamento?id=${addedBudget._id}`;
+
+    const publicLink = `http://localhost:5173/orcamento?id=${addedBudget._id}`;
+
+    addedBudget.publicLink = publicLink;
+    establishment.markModified("budgets");
+    await establishment.save();
+
     try {
       const controller = new AbortController();
       const sanitizedPhone = phone.replace(/\D/g, "");
-      console.log("Enviando WhatsApp para:", sanitizedPhone);
       const whatsappResponse = await fetch(
         "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
         {
@@ -175,8 +179,6 @@ exports.getPublicBudget = async (req, res) => {
   }
 };
 
-// Adicione isso no topo (após os requires do Express, Cloudinary etc.)
-
 exports.signBudget = async (req, res) => {
   const cloudinary = require("../config/cloudinary");
   try {
@@ -197,7 +199,6 @@ exports.signBudget = async (req, res) => {
         .json({ error: "Assinatura não enviada corretamente" });
     }
 
-    // 1️⃣ Upload da assinatura
     const signatureResult = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -216,30 +217,27 @@ exports.signBudget = async (req, res) => {
     budget.signatureUrl = signatureResult.secure_url;
     budget.updatedAt = new Date();
 
-    // 2️⃣ Baixa o PDF original
     const pdfResponse = await fetch(budget.documentUrl);
     const pdfBuffer = await pdfResponse.arrayBuffer();
 
-    // 3️⃣ Baixa a imagem da assinatura
     const signatureResponse = await fetch(budget.signatureUrl);
     const signatureBuffer = await signatureResponse.arrayBuffer();
 
-    // 4️⃣ Usa pdf-lib para colocar a assinatura no PDF
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const signatureImage = await pdfDoc.embedPng(signatureBuffer);
 
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
+
     firstPage.drawImage(signatureImage, {
-      x: 50,
-      y: 50,
+      x: 220,
+      y: 130,
       width: 150,
       height: 50,
     });
 
     const signedPdfBytes = await pdfDoc.save();
 
-    // 5️⃣ Upload do PDF assinado
     const signedPdfUpload = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -261,8 +259,19 @@ exports.signBudget = async (req, res) => {
     budget.signedDocumentUrl = signedPdfUpload.secure_url;
     await establishment.save();
 
-    // 🚀 Emitir evento Socket.IO aqui
-    const io = getIO(); // chama a função para obter o io
+    const signaturePublicId = signatureResult.public_id;
+    await cloudinary.uploader.destroy(signaturePublicId, {
+      resource_type: "image",
+    });
+
+    const originalPublicId = extractPublicIdFromUrl(budget.documentUrl);
+    if (originalPublicId) {
+      await cloudinary.uploader.destroy(originalPublicId, {
+        resource_type: "raw",
+      });
+    }
+
+    const io = getIO();
     io.emit("budgetSigned", {
       budgetId: budget._id,
       signatureUrl: budget.signatureUrl,
@@ -270,7 +279,8 @@ exports.signBudget = async (req, res) => {
     });
 
     res.status(200).json({
-      message: "Assinatura enviada e documento assinado gerado com sucesso",
+      message:
+        "Assinatura enviada, documento assinado gerado e documentos antigos removidos com sucesso",
       signatureUrl: budget.signatureUrl,
       signedDocumentUrl: budget.signedDocumentUrl,
     });
@@ -279,3 +289,15 @@ exports.signBudget = async (req, res) => {
     res.status(500).json({ error: "Erro ao enviar assinatura" });
   }
 };
+
+function extractPublicIdFromUrl(url) {
+  try {
+    const parts = url.split("/");
+    const fileName = parts[parts.length - 1].split(".")[0];
+    const folder = parts[parts.length - 2];
+    return `${folder}/${fileName}`;
+  } catch (err) {
+    console.error("Erro ao extrair public_id:", err);
+    return null;
+  }
+}

@@ -94,6 +94,8 @@ const establishmentSchema = new Schema(
           },
         ],
         documentUrl: String,
+        publicLink: String,
+        plate: String,
         signatureUrl: { type: String, default: "" },
         signedDocumentUrl: { type: String, default: "" },
         updatedAt: Date,

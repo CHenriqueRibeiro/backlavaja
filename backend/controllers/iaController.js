@@ -85,7 +85,6 @@ exports.preverConsumo = async (req, res) => {
         if (historicoOriginal.length === 0) {
           return `Produto: ${prod.name}
 - Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}
-- Consumo médio por serviço: 0 ml
 - Previsão de término:
   - Indefinido`;
         }
@@ -105,8 +104,8 @@ exports.preverConsumo = async (req, res) => {
           historicoPorServico[nomeServico].push(registro.quantidade);
         });
 
-        // Calcula o consumo médio e previsão de término por serviço
-        const consumoPorServicoDetalhado = Object.entries(historicoPorServico)
+        // Calcula a previsão de término por serviço
+        const previsaoPorServico = Object.entries(historicoPorServico)
           .map(([nomeServico, consumos]) => {
             const totalServico = consumos.reduce((sum, q) => sum + q, 0);
             const mediaServico = totalServico / consumos.length;
@@ -124,9 +123,8 @@ exports.preverConsumo = async (req, res) => {
 
         return `Produto: ${prod.name}
 - Quantidade atual: ${quantidadeFormatada}
-- Consumo médio por serviço: consulte detalhamento abaixo
-- Previsão de término:
-${consumoPorServicoDetalhado}`;
+- Previsão de término por serviço:
+${previsaoPorServico}`;
       })
       .join("\n\n");
 
@@ -145,13 +143,12 @@ Com base nesses dados, gere um resumo padronizado para o gestor com os seguintes
 
 Para cada produto, informe:
 - Quantidade atual
-- Consumo médio por serviço
-- Previsão de término em número de serviços por serviço vinculado
+- Previsão de término por serviço (não consolidar total)
 - Recomendação de reposição (se necessário)
 
 Se algum produto não tiver histórico, deixe como "indefinido".
 
-Siga sempre este formato.
+Siga sempre este formato. NÃO RESUMA as previsões em apenas uma linha, mostre cada serviço vinculado separadamente.
 `;
 
     const resposta = await fetch("https://api.openai.com/v1/chat/completions", {

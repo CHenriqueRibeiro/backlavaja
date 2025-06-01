@@ -80,7 +80,7 @@ exports.createBudget = async (req, res) => {
 
     const addedBudget = establishment.budgets[establishment.budgets.length - 1];
 
-    const publicLink = `http://localhost:5173/orcamento?id=${addedBudget._id}`;
+    const publicLink = `https://adminlavaja.vercel.app/orcamento?id=${addedBudget._id}`;
 
     addedBudget.publicLink = publicLink;
     establishment.markModified("budgets");

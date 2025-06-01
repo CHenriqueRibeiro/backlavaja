@@ -74,59 +74,44 @@ exports.preverConsumo = async (req, res) => {
       });
     }
 
-    const listaProdutos = produtosComHistorico
+    const listaProdutos = produtos
       .map((prod) => {
         const historicoOriginal = prod.consumoHistorico || [];
-        const quantidadeAtualConvertida = converterParaML(
-          prod.quantidadeAtual,
-          prod.unidade || "mL"
-        );
 
         if (historicoOriginal.length === 0) {
-          return `Produto: ${prod.name}
-- Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}
-- Previsão de término:
-  - Indefinido`;
+          return `Produto: ${prod.name}, Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}, Consumo médio por serviço: 0 ml, Vai acabar em: indefinido serviços`;
         }
 
         const historico = ajustarHistoricoParaML(
           historicoOriginal,
           prod.unidade
         );
+        const totalConsumido = historico.reduce(
+          (sum, h) => sum + h.quantidade,
+          0
+        );
+        const totalServicos = historico.length;
+        const consumoPorServico = totalConsumido / totalServicos;
 
-        // Agrupa o histórico por serviço
-        const historicoPorServico = {};
-        historico.forEach((registro) => {
-          const nomeServico = registro.nomeServico || "Indefinido";
-          if (!historicoPorServico[nomeServico]) {
-            historicoPorServico[nomeServico] = [];
-          }
-          historicoPorServico[nomeServico].push(registro.quantidade);
-        });
+        const quantidadeAtualConvertida = converterParaML(
+          prod.quantidadeAtual,
+          prod.unidade || "mL"
+        );
 
-        // Calcula a previsão de término por serviço
-        const previsaoPorServico = Object.entries(historicoPorServico)
-          .map(([nomeServico, consumos]) => {
-            const totalServico = consumos.reduce((sum, q) => sum + q, 0);
-            const mediaServico = totalServico / consumos.length;
-            const servicosRestantes =
-              mediaServico > 0
-                ? Math.floor(quantidadeAtualConvertida / mediaServico)
-                : "indefinido";
-            return `  - ${nomeServico}: ${servicosRestantes} serviços`;
-          })
-          .join("\n");
+        const servicosRestantes =
+          consumoPorServico > 0
+            ? Math.floor(quantidadeAtualConvertida / consumoPorServico)
+            : "indefinido";
 
         const quantidadeFormatada = Number.isInteger(prod.quantidadeAtual)
           ? `${prod.quantidadeAtual} ${prod.unidade}`
           : `${prod.quantidadeAtual.toFixed(1)} ${prod.unidade}`;
 
-        return `Produto: ${prod.name}
-- Quantidade atual: ${quantidadeFormatada}
-- Previsão de término por serviço:
-${previsaoPorServico}`;
+        const consumoFormatado = `${consumoPorServico} ml`;
+
+        return `Produto: ${prod.name}, Quantidade atual: ${quantidadeFormatada}, Consumo médio por serviço: ${consumoFormatado}, Vai acabar em: ${servicosRestantes} serviços`;
       })
-      .join("\n\n");
+      .join("\n");
 
     const prompt = `
 Hoje é ${hoje.toLocaleDateString()}.
@@ -143,12 +128,13 @@ Com base nesses dados, gere um resumo padronizado para o gestor com os seguintes
 
 Para cada produto, informe:
 - Quantidade atual
-- Previsão de término por serviço (não consolidar total)
+- Consumo médio por serviço
+- Previsão de término em número de serviços
 - Recomendação de reposição (se necessário)
 
 Se algum produto não tiver histórico, deixe como "indefinido".
 
-Siga sempre este formato. NÃO RESUMA as previsões em apenas uma linha, mostre cada serviço vinculado separadamente.
+Siga sempre este formato.
 `;
 
     const resposta = await fetch("https://api.openai.com/v1/chat/completions", {

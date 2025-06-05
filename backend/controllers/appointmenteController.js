@@ -344,19 +344,6 @@ exports.updateAppointmentStatus = async (req, res) => {
   }
 };
 
-exports.getAppointments = async (req, res) => {
-  try {
-    const appointments = await Appointment.find()
-      .populate("service")
-      .populate("establishment");
-    res.status(200).json(appointments);
-  } catch (error) {
-    res.status(500).json({
-      message: "Erro ao buscar agendamentos.",
-      error: error.message || error,
-    });
-  }
-};
 exports.getDashboardReport = async (req, res) => {
   try {
     const { establishmentId, startDate, endDate } = req.query;
@@ -463,9 +450,26 @@ exports.getAppointmentsByEstablishment = async (req, res) => {
 exports.updateAppointment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { price, serviceName, veiculo, startTime } = req.body;
+    const {
+      price,
+      serviceName,
+      serviceId,
+      veiculo,
+      date,
+      startTime,
+      endTime,
+      reminderWhatsapp,
+    } = req.body;
 
-    if (!serviceName || !price || !veiculo || !startTime) {
+    if (
+      !serviceName ||
+      !price ||
+      !veiculo ||
+      !date ||
+      !serviceId ||
+      !startTime ||
+      !endTime
+    ) {
       return res
         .status(400)
         .json({ message: "Todos os campos são obrigatórios." });
@@ -486,37 +490,77 @@ exports.updateAppointment = async (req, res) => {
     }
 
     const selectedService = establishment.services.find(
-      (s) => s.name === serviceName
+      (s) => s._id.toString() === serviceId
     );
-
     if (!selectedService) {
       return res.status(404).json({ message: "Serviço não encontrado." });
     }
-
-    const [startHour, startMinute] = startTime.split(":").map(Number);
-    const durationMinutes = selectedService.duration;
-    const endDate = new Date(0, 0, 0, startHour, startMinute + durationMinutes);
-
-    const rawEndTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(
-      endDate.getMinutes()
-    ).padStart(2, "0")}`;
-    const endTime = subtractOneMinute(rawEndTime);
-
-    const updatedAppointment = await Appointment.findByIdAndUpdate(
-      id,
-      {
-        serviceName,
-        price,
-        veiculo,
-        startTime,
-        endTime,
-      },
-      { new: true }
+    const [year, month, day] = date.split("-").map(Number);
+    const localDateAtMidnight = new Date(year, month - 1, day, 0, 0, 0);
+    const daysOfWeek = [
+      "Domingo",
+      "Segunda",
+      "Terça",
+      "Quarta",
+      "Quinta",
+      "Sexta",
+      "Sábado",
+    ];
+    const capitalizedDay = daysOfWeek[localDateAtMidnight.getDay()];
+    const availabilityDay = selectedService.availability.find(
+      (a) => a.day === capitalizedDay
     );
+
+    if (!availabilityDay) {
+      return res
+        .status(400)
+        .json({ message: `Serviço indisponível para ${capitalizedDay}` });
+    }
+
+    const hourIsAvailable = availabilityDay.availableHours.some((h) => {
+      return startTime >= h.start && endTime <= h.end;
+    });
+
+    if (!hourIsAvailable) {
+      return res
+        .status(400)
+        .json({ message: "Horário indisponível para esse serviço." });
+    }
+
+    const overlappingAppointmentsCount = await Appointment.countDocuments({
+      _id: { $ne: id },
+      service: serviceId,
+      establishment: appointment.establishment,
+      date,
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+    });
+
+    if (
+      (!selectedService.concurrentService &&
+        overlappingAppointmentsCount > 0) ||
+      (selectedService.concurrentService &&
+        overlappingAppointmentsCount >= selectedService.concurrentServiceValue)
+    ) {
+      return res.status(400).json({
+        message: "Horário já atingiu o limite de agendamentos simultâneos.",
+      });
+    }
+
+    appointment.serviceName = serviceName;
+    appointment.service = serviceId;
+    appointment.veiculo = veiculo;
+    appointment.date = date;
+    appointment.startTime = startTime;
+    appointment.endTime = endTime;
+    appointment.price = price;
+    appointment.reminderWhatsapp = reminderWhatsapp;
+
+    await appointment.save();
 
     return res.status(200).json({
       message: "Agendamento atualizado com sucesso.",
-      appointment: updatedAppointment,
+      appointment,
     });
   } catch (error) {
     console.error("Erro ao atualizar o agendamento:", error);

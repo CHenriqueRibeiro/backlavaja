@@ -16,30 +16,38 @@ exports.createLead = async (req, res) => {
   if (!name || !whatsapp || !email) {
     return res.status(400).json({ error: "Todos os campos são obrigatórios." });
   }
-  const payload = {
-    deal: {
-      deal_stage_id: RDSTATION_STAGE_ID,
-      name: name,
-    },
-    contacts: [
-      {
-        name: name,
-        phones: [
-          {
-            phone: whatsapp,
-            type: "cellphone",
-          },
-        ],
-        emails: [
-          {
-            email: email,
-          },
-        ],
-      },
-    ],
-  };
 
   try {
+    const existingOwner = await Owner.findOne({ email });
+    if (existingOwner) {
+      return res.status(409).json({
+        error:
+          "E-mail já cadastrado. Não é possível criar outro teste com o mesmo e-mail. Por favor, faça login com sua credenciais em nosso sistema.",
+      });
+    }
+    const payload = {
+      deal: {
+        deal_stage_id: RDSTATION_STAGE_ID,
+        name: name,
+      },
+      contacts: [
+        {
+          name: name,
+          phones: [
+            {
+              phone: whatsapp,
+              type: "cellphone",
+            },
+          ],
+          emails: [
+            {
+              email: email,
+            },
+          ],
+        },
+      ],
+    };
+
     const response = await fetch(
       `https://crm.rdstation.com/api/v1/deals?token=${RDSTATION_TOKEN}`,
       {
@@ -53,27 +61,24 @@ exports.createLead = async (req, res) => {
     if (!response.ok) {
       return res
         .status(400)
-        .json({ error: data.error || "Erro ao enviar lead" });
+        .json({ error: data.error || "Erro ao enviar lead para RD Station." });
     }
 
     const senhaProvisoria = crypto.randomBytes(4).toString("hex");
 
-    let owner = await Owner.findOne({ email });
-    if (!owner) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(senhaProvisoria, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(senhaProvisoria, salt);
 
-      owner = new Owner({
-        name,
-        email,
-        phone: whatsapp,
-        password: hashedPassword,
-        isTemporaryPassword: true,
-        establishments: [],
-      });
+    const owner = new Owner({
+      name,
+      email,
+      phone: whatsapp,
+      password: hashedPassword,
+      isTemporaryPassword: true,
+      establishments: [],
+    });
 
-      await owner.save();
-    }
+    await owner.save();
 
     const dataExpiracao = new Date();
     dataExpiracao.setDate(dataExpiracao.getDate() + 15);

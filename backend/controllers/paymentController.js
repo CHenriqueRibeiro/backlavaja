@@ -5,20 +5,22 @@ const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
-const paymentClient = new mercadopago.Payment(mp); // 👈 Correção aqui
+const paymentClient = new mercadopago.Payment(mp);
 
 exports.createPayment = async (req, res) => {
   try {
-    const { amount, description, payer_email } = req.body;
-    console.log("🚀 Recebido no Backend:", req.body);
+    console.log("🚀 Corpo recebido:", req.body);
 
+    const { amount, description, payer_email } = req.body;
     if (!amount) {
       return res.status(400).json({
         message: "O campo 'amount' é obrigatório.",
       });
     }
 
-    const parsedAmount = Number(amount);
+    const parsedAmount = parseFloat(amount);
+    console.log("🚀 Valor de amount:", parsedAmount);
+
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({
         message:

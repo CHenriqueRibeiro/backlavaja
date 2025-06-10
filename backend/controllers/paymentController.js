@@ -5,12 +5,12 @@ const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
-// Cria o client de pagamento
-const paymentClient = new mercadopago.Payment(mp);
+const paymentClient = new mercadopago.Payment(mp); // 👈 Correção aqui
 
 exports.createPayment = async (req, res) => {
   try {
     const { amount, description, payer_email } = req.body;
+    console.log("🚀 Recebido no Backend:", req.body);
 
     if (!amount) {
       return res.status(400).json({
@@ -18,17 +18,24 @@ exports.createPayment = async (req, res) => {
       });
     }
 
-    // Aqui usa a instância do cliente
-    const result = await paymentClient.create({
-      transaction_amount: Number(amount),
+    const parsedAmount = Number(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({
+        message:
+          "O campo 'amount' é obrigatório e deve ser um número positivo.",
+      });
+    }
+
+    const payment = await paymentClient.create({
+      transaction_amount: parsedAmount,
       description,
-      payment_method_id: "pix", // ou outro
+      payment_method_id: "pix",
       payer: {
         email: payer_email,
       },
     });
 
-    res.status(200).json(result);
+    res.status(200).json(payment);
   } catch (error) {
     console.error("Erro ao criar pagamento:", error);
     res.status(500).json({ error: "Erro ao criar pagamento." });

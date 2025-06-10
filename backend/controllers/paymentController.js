@@ -5,23 +5,30 @@ const mp = new mercadopago.MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
-// Crie o client de pagamento
-const payment = new mercadopago.Payment(mp);
+// Cria o client de pagamento
+const paymentClient = new mercadopago.Payment(mp);
 
 exports.createPayment = async (req, res) => {
   try {
     const { amount, description, payer_email } = req.body;
 
-    const response = await payment.create({
-      transaction_amount: amount,
-      description: description,
-      payment_method_id: "pix",
+    if (!amount) {
+      return res.status(400).json({
+        message: "O campo 'amount' é obrigatório.",
+      });
+    }
+
+    // Aqui usa a instância do cliente
+    const result = await paymentClient.create({
+      transaction_amount: Number(amount),
+      description,
+      payment_method_id: "pix", // ou outro
       payer: {
         email: payer_email,
       },
     });
 
-    res.status(200).json(response);
+    res.status(200).json(result);
   } catch (error) {
     console.error("Erro ao criar pagamento:", error);
     res.status(500).json({ error: "Erro ao criar pagamento." });

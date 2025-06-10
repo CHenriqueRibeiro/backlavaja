@@ -11,25 +11,18 @@ exports.createPayment = async (req, res) => {
   try {
     console.log("🚀 Corpo recebido:", req.body);
 
-    const { amount, description, payer_email } = req.body;
-    if (!amount) {
-      return res.status(400).json({
-        message: "O campo 'amount' é obrigatório.",
-      });
-    }
+    // Dados MOCKADOS para teste (remova depois)
+    const amount = 44.9;
+    const description = "Plano Simples";
+    const payer_email = "cliente@exemplo.com";
 
-    const parsedAmount = parseFloat(amount);
-    console.log("🚀 Valor de amount:", parsedAmount);
-
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return res.status(400).json({
-        message:
-          "O campo 'amount' é obrigatório e deve ser um número positivo.",
-      });
-    }
+    console.log("🚀 Dados mockados:");
+    console.log("Amount:", amount);
+    console.log("Description:", description);
+    console.log("Payer Email:", payer_email);
 
     const payment = await paymentClient.create({
-      transaction_amount: parsedAmount,
+      transaction_amount: amount,
       description,
       payment_method_id: "pix",
       payer: {

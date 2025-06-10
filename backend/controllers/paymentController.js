@@ -9,28 +9,33 @@ const paymentClient = new mercadopago.Payment(mp);
 
 exports.createPayment = async (req, res) => {
   try {
-    console.log("🚀 Corpo recebido:", req.body);
+    const { amount, description, payer_email } = req.body;
 
-    // Dados MOCKADOS para teste (remova depois)
-    const amount = 44.9;
-    const description = "Plano Simples";
-    const payer_email = "cliente@exemplo.com";
-
-    console.log("🚀 Dados mockados:");
-    console.log("Amount:", amount);
-    console.log("Description:", description);
-    console.log("Payer Email:", payer_email);
+    if (!amount || !description || !payer_email) {
+      return res.status(400).json({
+        error:
+          "Campos obrigatórios faltando (amount, description, payer_email).",
+      });
+    }
 
     const payment = await paymentClient.create({
-      transaction_amount: amount,
-      description,
-      payment_method_id: "pix",
-      payer: {
-        email: payer_email,
+      body: {
+        transaction_amount: Number(amount),
+        description,
+        payment_method_id: "pix",
+        payer: {
+          email: payer_email,
+        },
       },
     });
 
-    res.status(200).json(payment);
+    res.status(200).json({
+      id: payment.id,
+      status: payment.status,
+      qr_code: payment.point_of_interaction.transaction_data.qr_code,
+      qr_code_base64:
+        payment.point_of_interaction.transaction_data.qr_code_base64,
+    });
   } catch (error) {
     console.error("Erro ao criar pagamento:", error);
     res.status(500).json({ error: "Erro ao criar pagamento." });

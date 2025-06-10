@@ -1,34 +1,24 @@
 const fetch = require("node-fetch");
 const mercadopago = require("mercadopago");
 
+mercadopago.configure({
+  access_token: process.env.MERCADOPAGO_ACCESS_TOKEN,
+});
+
 exports.createPayment = async (req, res) => {
   try {
-    const { description, amount, payerEmail } = req.body;
+    const { amount, description, payer_email } = req.body;
 
-    const preference = {
-      items: [
-        {
-          title: description,
-          quantity: 1,
-          unit_price: parseFloat(amount),
-          currency_id: "BRL",
-        },
-      ],
+    const payment = await mercadopago.payment.create({
+      transaction_amount: amount,
+      description,
+      payment_method_id: "pix",
       payer: {
-        email: payerEmail,
+        email: payer_email,
       },
-      back_urls: {
-        success: "https://lavaja.app.br/pagamento-sucesso",
-        failure: "https://lavaja.app.br/pagamento-falha",
-        pending: "https://lavaja.app.br/pagamento-pendente",
-      },
-      auto_return: "approved",
-    };
+    });
 
-    const response = await mercadopago.preferences.create(preference);
-    console.log("💰 Preference criada:", response.body);
-
-    res.json({ init_point: response.body.init_point });
+    res.status(200).json(payment.body);
   } catch (error) {
     console.error("Erro ao criar pagamento:", error);
     res.status(500).json({ error: "Erro ao criar pagamento." });

@@ -29,7 +29,8 @@ const loginOwner = async (req, res) => {
     res.json({
       message: "Login bem-sucedido!",
       token,
-      requirePasswordChange: owner.isTemporaryPassword, // 👈 Envia a flag
+      requirePasswordChange: owner.isTemporaryPassword,
+      statusConta: owner.statusConta,
       owner: {
         id: owner._id,
         email: owner.email,

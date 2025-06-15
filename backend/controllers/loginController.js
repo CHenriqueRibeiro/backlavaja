@@ -31,6 +31,7 @@ const loginOwner = async (req, res) => {
       token,
       requirePasswordChange: owner.isTemporaryPassword,
       statusConta: owner.statusConta,
+      dataLimiteTeste: owner.dataLimiteTeste,
       owner: {
         id: owner._id,
         email: owner.email,

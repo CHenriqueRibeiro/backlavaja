@@ -26,7 +26,6 @@ exports.createLead = async (req, res) => {
       });
     }
 
-    // Monta Payload para RD Station
     const payload = {
       deal: {
         deal_stage_id: RDSTATION_STAGE_ID,
@@ -71,7 +70,6 @@ exports.createLead = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(senhaProvisoria, salt);
 
-    // Calcula data limite (15 dias)
     const dataLimiteTeste = new Date();
     dataLimiteTeste.setDate(dataLimiteTeste.getDate() + 15);
 

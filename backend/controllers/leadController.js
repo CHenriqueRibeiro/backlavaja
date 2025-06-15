@@ -25,6 +25,8 @@ exports.createLead = async (req, res) => {
           "E-mail já cadastrado. Não é possível criar outro teste com o mesmo e-mail. Por favor, faça login com sua credenciais em nosso sistema.",
       });
     }
+
+    // Monta Payload para RD Station
     const payload = {
       deal: {
         deal_stage_id: RDSTATION_STAGE_ID,
@@ -69,6 +71,10 @@ exports.createLead = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(senhaProvisoria, salt);
 
+    // Calcula data limite (15 dias)
+    const dataLimiteTeste = new Date();
+    dataLimiteTeste.setDate(dataLimiteTeste.getDate() + 15);
+
     const owner = new Owner({
       name,
       email,
@@ -76,10 +82,9 @@ exports.createLead = async (req, res) => {
       password: hashedPassword,
       isTemporaryPassword: true,
       statusConta: "teste",
+      dataLimiteTeste,
       establishments: [],
     });
-
-    await owner.save();
 
     await owner.save();
 

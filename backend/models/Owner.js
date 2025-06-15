@@ -7,8 +7,29 @@ const ownerSchema = new mongoose.Schema(
     password: { type: String, required: true },
     phone: { type: String, required: true },
     isTemporaryPassword: { type: Boolean, default: false },
-    statusConta: { type: String, default: "teste" },
-    dataLimiteTeste: { type: Date },
+
+    statusConta: {
+      type: String,
+      enum: ["teste", "ativa", "cancelada"],
+      default: "teste",
+    },
+    dataLimite: { type: Date },
+    onboardingSteps: {
+      estabelecimento: { type: Boolean, default: false },
+      servico: { type: Boolean, default: false },
+    },
+
+    historicoStatus: [
+      {
+        status: {
+          type: String,
+          enum: ["teste", "ativa", "cancelada"],
+        },
+        data: { type: Date, default: Date.now },
+        plano: { type: String },
+      },
+    ],
+
     establishments: [
       {
         type: mongoose.Schema.Types.ObjectId,

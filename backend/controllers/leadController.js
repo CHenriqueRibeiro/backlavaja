@@ -70,8 +70,8 @@ exports.createLead = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(senhaProvisoria, salt);
 
-    const dataLimiteTeste = new Date();
-    dataLimiteTeste.setDate(dataLimiteTeste.getDate() + 15);
+    const dataLimite = new Date();
+    dataLimite.setDate(dataLimite.getDate() + 15);
 
     const owner = new Owner({
       name,
@@ -80,8 +80,14 @@ exports.createLead = async (req, res) => {
       password: hashedPassword,
       isTemporaryPassword: true,
       statusConta: "teste",
-      dataLimiteTeste,
-      establishments: [],
+      dataLimite,
+      historicoStatus: [
+        {
+          status: "teste",
+          plano: "teste",
+          data: new Date(),
+        },
+      ],
     });
 
     await owner.save();

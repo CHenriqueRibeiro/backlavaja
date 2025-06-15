@@ -64,17 +64,16 @@ exports.createPayment = async (req, res) => {
         body: {
           transaction_amount: amount,
           description: plan_name,
-          payment_method_id: "visa", // ou dinâmico, se vier do front
+          payment_method_id: "visa",
           token: card_token,
-          installments: installments || 1, // default to 1 if not provided
-          issuer_id: issuer || null, // default to null if not provided
+          installments: installments || 1,
+          issuer_id: issuer || null,
           payer: {
             email: payer_email,
           },
         },
       });
 
-      // Retorna o status do pagamento
       return res.status(200).json({
         id: payment.id,
         status: payment.status,
@@ -111,13 +110,6 @@ exports.webhook = async (req, res) => {
         }
       );
 
-      const paymentData = await response.json();
-      console.log("💰 Detalhes do pagamento:", paymentData);
-
-      // Aqui você pode atualizar status no seu banco de dados
-      // Exemplo:
-      // await PaymentModel.updateStatus(paymentId, paymentData.status);
-
       res.sendStatus(200);
     } else {
       res.status(400).json({ message: "Evento não processado ou inválido." });
@@ -128,7 +120,6 @@ exports.webhook = async (req, res) => {
   }
 };
 
-// Novo endpoint opcional para verificar status de pagamento
 exports.checkPaymentStatus = async (req, res) => {
   try {
     const { paymentId } = req.params;

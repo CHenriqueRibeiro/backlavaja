@@ -1,5 +1,6 @@
 const Service = require("../models/Service");
 const Establishment = require("../models/Establishment");
+const Owner = require("../models/Owner");
 
 exports.createService = async (req, res) => {
   const {
@@ -7,7 +8,6 @@ exports.createService = async (req, res) => {
     description,
     price,
     duration,
-    // dailyLimit,
     availability,
     concurrentService,
     concurrentServiceValue,
@@ -28,7 +28,6 @@ exports.createService = async (req, res) => {
       description,
       price,
       duration,
-      //dailyLimit,
       availability,
       establishment: establishmentId,
       owner: establishment.owner,
@@ -44,13 +43,22 @@ exports.createService = async (req, res) => {
       description: service.description,
       price: service.price,
       duration: service.duration,
-      //dailyLimit: service.dailyLimit,
       availability: service.availability,
       concurrentService: service.concurrentService,
       concurrentServiceValue: service.concurrentServiceValue,
     });
 
     await establishment.save();
+
+    // ✅ Atualiza step "servico" do owner
+    const owner = await Owner.findById(establishment.owner);
+    if (owner) {
+      owner.onboardingSteps = {
+        ...owner.onboardingSteps,
+        servico: true, // Marca o step de serviço como concluído
+      };
+      await owner.save();
+    }
 
     return res.status(201).json({
       message: "Serviço criado com sucesso!",

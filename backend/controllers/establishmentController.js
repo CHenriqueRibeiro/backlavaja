@@ -11,6 +11,7 @@ exports.createEstablishment = async (req, res) => {
       paymentMethods,
       workingDays,
     } = req.body;
+
     if (
       !nameEstablishment ||
       !address?.street ||
@@ -98,7 +99,8 @@ exports.createEstablishment = async (req, res) => {
 
     await newEstablishment.save();
 
-    ownerExists.establishments.push(newEstablishment);
+    ownerExists.establishments.push(newEstablishment._id);
+    ownerExists.onboardingSteps.estabelecimento = true;
     await ownerExists.save();
 
     return res.status(201).json({
@@ -123,7 +125,19 @@ exports.getEstablishmentsByOwner = async (req, res) => {
       return res.status(404).json({ message: "Dono não encontrado" });
     }
 
-    return res.status(200).json({ establishments: owner.establishments });
+    return res.status(200).json({
+      statusConta: owner.statusConta,
+      dataLimite: owner.dataLimite
+        ? owner.dataLimite.toLocaleDateString("pt-BR")
+        : null,
+      historicoStatus: owner.historicoStatus.map((item) => ({
+        status: item.status,
+        data: item.data.toLocaleDateString("pt-BR"),
+        plano: item.plano,
+      })),
+      onboardingSteps: owner.onboardingSteps,
+      establishments: owner.establishments,
+    });
   } catch (error) {
     console.error(error);
     return res
@@ -254,5 +268,35 @@ exports.deleteEstablishment = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erro ao deletar o estabelecimento", error });
+  }
+};
+
+exports.updateOnboardingStep = async (req, res) => {
+  try {
+    const { ownerId } = req.params;
+    const { step, completed } = req.body;
+
+    if (!["estabelecimento", "servico"].includes(step)) {
+      return res.status(400).json({ message: "Passo inválido." });
+    }
+
+    const owner = await Owner.findById(ownerId);
+    if (!owner) {
+      return res.status(404).json({ message: "Dono não encontrado." });
+    }
+
+    owner.onboardingSteps[step] = completed;
+    await owner.save();
+
+    return res.status(200).json({
+      message: `Passo '${step}' atualizado com sucesso.`,
+      onboardingSteps: owner.onboardingSteps,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Erro ao atualizar passo de onboarding.",
+      error,
+    });
   }
 };

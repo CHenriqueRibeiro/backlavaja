@@ -12,4 +12,9 @@ router.delete(
   "/establishment/:establishmentId",
   establishmentController.deleteEstablishment
 );
+router.patch(
+  "/onboarding/:ownerId",
+  establishmentController.updateOnboardingStep
+);
+
 module.exports = router;

@@ -20,6 +20,7 @@ const ownerSchema = new mongoose.Schema(
       required: true,
     },
     isTemporaryPassword: { type: Boolean, default: false },
+    statusConta: { type: String, default: "teste" },
     establishments: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -75,8 +75,11 @@ exports.createLead = async (req, res) => {
       phone: whatsapp,
       password: hashedPassword,
       isTemporaryPassword: true,
+      statusConta: "teste",
       establishments: [],
     });
+
+    await owner.save();
 
     await owner.save();
 
@@ -98,6 +101,7 @@ exports.createLead = async (req, res) => {
         senhaProvisoria,
         dataExpiracao: dataFormatada,
         ownerId: owner._id,
+        statusConta: "teste",
       }),
     });
 

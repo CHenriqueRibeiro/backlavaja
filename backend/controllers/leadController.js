@@ -1,4 +1,3 @@
-// controllers/leadController.js
 const fetch = require("node-fetch");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");

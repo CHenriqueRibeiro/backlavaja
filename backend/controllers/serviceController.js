@@ -50,12 +50,11 @@ exports.createService = async (req, res) => {
 
     await establishment.save();
 
-    // ✅ Atualiza step "servico" do owner
     const owner = await Owner.findById(establishment.owner);
     if (owner) {
       owner.onboardingSteps = {
         ...owner.onboardingSteps,
-        servico: true, // Marca o step de serviço como concluído
+        servico: true,
       };
       await owner.save();
     }

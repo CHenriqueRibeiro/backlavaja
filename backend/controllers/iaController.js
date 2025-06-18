@@ -52,89 +52,68 @@ exports.preverConsumo = async (req, res) => {
       });
     }
 
-    const produtosComVinculo = produtos.filter(
-      (prod) => Array.isArray(prod.servicos) && prod.servicos.length > 0
-    );
+    const obterNomeDoServico = async (serviceId) => {
+      const servico = await Service.findById(serviceId);
+      return servico ? servico.name : `Serviço ID: ${serviceId}`;
+    };
 
-    if (produtosComVinculo.length === 0) {
-      return res.status(200).json({
-        resposta:
-          "Os produtos ainda não estão vinculados a nenhum serviço. Faça a atribuição antes de gerar a análise.",
-      });
-    }
+    const listaProdutos = await Promise.all(
+      produtos.map(async (prod) => {
+        const quantidadeAtualConvertida = Number(
+          converterParaML(prod.quantidadeAtual, prod.unidade || "mL")
+        ).toFixed(2);
 
-    const produtosComHistorico = produtosComVinculo.filter(
-      (prod) => prod.consumoHistorico && prod.consumoHistorico.length > 0
-    );
+        const servicosVinculados = await Promise.all(
+          prod.servicos.map(async (vinculo) => {
+            const nomeServico = await obterNomeDoServico(vinculo.service);
 
-    if (produtosComHistorico.length === 0) {
-      return res.status(200).json({
-        resposta:
-          "Ainda não há histórico de uso suficiente para gerar a previsão. Execute ao menos um serviço com os produtos para que a JáIA possa realizar a análise.",
-      });
-    }
+            const consumoPorExecucao = converterParaML(
+              vinculo.consumoPorServico,
+              vinculo.unidadeConsumo
+            );
 
-    const listaProdutos = produtos
-      .map((prod) => {
-        const historicoOriginal = prod.consumoHistorico || [];
+            const previsaoTermino =
+              consumoPorExecucao > 0
+                ? Math.floor(quantidadeAtualConvertida / consumoPorExecucao)
+                : "Indefinido";
 
-        if (historicoOriginal.length === 0) {
-          return `Produto: ${prod.name}, Quantidade atual: ${prod.quantidadeAtual} ${prod.unidade}, Consumo médio por serviço: 0 ml, Vai acabar em: indefinido serviços`;
-        }
-
-        const historico = ajustarHistoricoParaML(
-          historicoOriginal,
-          prod.unidade
-        );
-        const totalConsumido = historico.reduce(
-          (sum, h) => sum + h.quantidade,
-          0
-        );
-        const totalServicos = historico.length;
-        const consumoPorServico = totalConsumido / totalServicos;
-
-        const quantidadeAtualConvertida = converterParaML(
-          prod.quantidadeAtual,
-          prod.unidade || "mL"
+            return `
+🔧 Serviço: ${nomeServico}
+- Consumo médio por execução: ${consumoPorExecucao} ml
+- Previsão de término: ${previsaoTermino} lavagens/execuções`;
+          })
         );
 
-        const servicosRestantes =
-          consumoPorServico > 0
-            ? Math.floor(quantidadeAtualConvertida / consumoPorServico)
-            : "indefinido";
-
-        const quantidadeFormatada = Number.isInteger(prod.quantidadeAtual)
-          ? `${prod.quantidadeAtual} ${prod.unidade}`
-          : `${prod.quantidadeAtual.toFixed(1)} ${prod.unidade}`;
-
-        const consumoFormatado = `${consumoPorServico} ml`;
-
-        return `Produto: ${prod.name}, Quantidade atual: ${quantidadeFormatada}, Consumo médio por serviço: ${consumoFormatado}, Vai acabar em: ${servicosRestantes} serviços`;
+        return `
+🧴 Produto: ${prod.name}
+- Quantidade atual: ${quantidadeAtualConvertida} ml
+${servicosVinculados.join("\n")}`;
       })
-      .join("\n");
+    );
 
     const prompt = `
-Hoje é ${hoje.toLocaleDateString()}.
-Abaixo estão os dados dos produtos do estoque:
+Relatório de Estoque - ${hoje.toLocaleDateString()}
 
-${listaProdutos}
+${listaProdutos.join("\n\n")}
 
-Com base nesses dados, gere um resumo padronizado para o gestor com os seguintes blocos, sempre na mesma ordem:
+Com base nesses dados, gere um resumo com os seguintes blocos:
+1. Produto Crítico: (se houver)
+2. Produto com Estoque Não Crítico: (se houver)
+3. Ação recomendada: (sempre colocar)
 
-1. Relatório de Estoque - DD/MM/AAAA
-2. Produto Crítico: (se houver)
-3. Produto com Estoque Não Crítico: (se houver)
-4. Ação recomendada: (resumo final)
+Padronize sempre nesse formato. Para cada produto, exiba:
+- Nome do produto
+- Quantidade atual (em ml)
+- Lista dos serviços vinculados com:
+  - Nome do serviço
+  - Consumo médio por execução
+  - Previsão de término (em número de lavagens)
 
-Para cada produto, informe:
-- Quantidade atual
-- Consumo médio por serviço
-- Previsão de término em número de serviços
-- Recomendação de reposição (se necessário)
+Se algum produto não tiver serviço vinculado, informe: "Sem serviços vinculados". 
 
-Se algum produto não tiver histórico, deixe como "indefinido".
+Se algum produto não tiver consumo médio, informe como "Indefinido".
 
-Siga sempre este formato.
+Seja objetivo, organizado, sem repetições e sem texto redundante.
 `;
 
     const resposta = await fetch("https://api.openai.com/v1/chat/completions", {

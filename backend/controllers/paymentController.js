@@ -90,7 +90,6 @@ exports.createPayment = async (req, res) => {
   }
 };
 
-// Webhook
 exports.webhook = async (req, res) => {
   try {
     console.log("🔔 Webhook recebido:", req.body);

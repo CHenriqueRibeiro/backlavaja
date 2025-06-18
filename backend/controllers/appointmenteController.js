@@ -357,6 +357,7 @@ exports.getDashboardReport = async (req, res) => {
     const appointments = await Appointment.find({
       establishment: establishmentId,
       date: { $gte: startDate, $lte: endDate },
+      status: "Entregue",
     });
 
     const totalRevenue = appointments.reduce(

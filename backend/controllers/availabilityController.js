@@ -57,6 +57,9 @@ exports.getAvailabilityByDate = async (req, res) => {
 
     const servicesData = [];
 
+    const openTime = parseTime(establishment.openingHours.open);
+    const closeTime = parseTime(establishment.openingHours.close);
+
     const lunchStart = establishment.openingHours.hasLunchBreak
       ? parseTime(establishment.openingHours.intervalOpen)
       : null;
@@ -90,21 +93,27 @@ exports.getAvailabilityByDate = async (req, res) => {
       const availableSlots = [];
 
       for (const interval of availabilityForDay.availableHours) {
-        let start = parseTime(interval.start);
-        const end = parseTime(interval.end);
+        let start = Math.max(parseTime(interval.start), openTime);
+        const end = Math.min(parseTime(interval.end), closeTime);
 
         while (start + duration <= end) {
-          const slotStart = minutesToTime(start);
-          const slotEnd = minutesToTime(start + duration);
+          const slotStartMinutes = start;
+          const slotEndMinutes = start + duration;
+
+          const slotStart = minutesToTime(slotStartMinutes);
+          const slotEnd = minutesToTime(slotEndMinutes);
 
           const isInLunchBreak =
             lunchStart !== null &&
             lunchEnd !== null &&
-            start >= lunchStart &&
-            start < lunchEnd;
+            ((slotStartMinutes >= lunchStart && slotStartMinutes < lunchEnd) ||
+              (slotEndMinutes > lunchStart && slotEndMinutes <= lunchEnd) ||
+              (slotStartMinutes <= lunchStart && slotEndMinutes >= lunchEnd));
 
           if (isInLunchBreak) {
+            // Avança para o fim do intervalo de almoço, mas verifica se ainda cabe dentro do dia
             start = lunchEnd;
+            if (start + duration > end) break;
             continue;
           }
 

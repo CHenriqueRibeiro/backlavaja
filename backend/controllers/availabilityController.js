@@ -57,6 +57,13 @@ exports.getAvailabilityByDate = async (req, res) => {
 
     const servicesData = [];
 
+    const lunchStart = establishment.openingHours.hasLunchBreak
+      ? parseTime(establishment.openingHours.intervalOpen)
+      : null;
+    const lunchEnd = establishment.openingHours.hasLunchBreak
+      ? parseTime(establishment.openingHours.intervalClose)
+      : null;
+
     for (const service of establishment.services) {
       const availabilityForDay = service.availability.find(
         (a) => a.day === dayName
@@ -89,6 +96,17 @@ exports.getAvailabilityByDate = async (req, res) => {
         while (start + duration <= end) {
           const slotStart = minutesToTime(start);
           const slotEnd = minutesToTime(start + duration);
+
+          const isInLunchBreak =
+            lunchStart !== null &&
+            lunchEnd !== null &&
+            start >= lunchStart &&
+            start < lunchEnd;
+
+          if (isInLunchBreak) {
+            start = lunchEnd;
+            continue;
+          }
 
           const overlappingCount = bookedTimes.filter((bt) =>
             timesOverlap(slotStart, slotEnd, bt.start, bt.end)

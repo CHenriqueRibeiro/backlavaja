@@ -111,7 +111,6 @@ exports.getAvailabilityByDate = async (req, res) => {
               (slotStartMinutes <= lunchStart && slotEndMinutes >= lunchEnd));
 
           if (isInLunchBreak) {
-            // Avança para o fim do intervalo de almoço, mas verifica se ainda cabe dentro do dia
             start = lunchEnd;
             if (start + duration > end) break;
             continue;

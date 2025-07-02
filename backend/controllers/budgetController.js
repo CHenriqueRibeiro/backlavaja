@@ -34,7 +34,10 @@ exports.createBudget = async (req, res) => {
         .json({ error: "Arquivo PDF não enviado corretamente" });
     }
 
-    const establishment = await Establishment.findById(establishmentId);
+    const establishment = await Establishment.findById(
+      establishmentId
+    ).populate("owner");
+
     if (!establishment) {
       return res.status(404).json({ error: "Estabelecimento não encontrado" });
     }
@@ -85,37 +88,37 @@ exports.createBudget = async (req, res) => {
     addedBudget.publicLink = publicLink;
     establishment.markModified("budgets");
     await establishment.save();
+    const instancePhone = establishment.owner?.phone;
+    const isConnected = establishment.owner?.whatsappConnection;
+    if (isConnected) {
+      try {
+        const sanitizedPhone = phone.replace(/\D/g, "");
 
-    try {
-      const controller = new AbortController();
-      const sanitizedPhone = phone.replace(/\D/g, "");
-      const whatsappResponse = await fetch(
-        "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
-            Authorization:
-              "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
-            signal: controller.signal,
-          },
-          body: JSON.stringify({
-            number: `55${sanitizedPhone}`,
-            text: `Olá ${clientName}!\n\nSeu orçamento está disponível no link abaixo:\n\n${publicLink}`,
-          }),
+        const whatsappResponse = await fetch(
+          `http://localhost:8080/message/sendText/${instancePhone}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: "odLscVS5lhvKOQ2fTm05xy8EwEd8G8Fx",
+            },
+            body: JSON.stringify({
+              number: `55${sanitizedPhone}`,
+              text: `Olá ${clientName}!\n\nSeu orçamento está disponível no link abaixo:\n\n${publicLink}`,
+            }),
+          }
+        );
+
+        if (!whatsappResponse.ok) {
+          const errorText = await whatsappResponse.text();
+          console.error("Erro na API Brasil:", errorText);
         }
-      );
-
-      if (!whatsappResponse.ok) {
-        const errorText = await whatsappResponse.text();
-        console.error("Erro na API Brasil:", errorText);
-      }
-    } catch (err) {
-      if (err.name === "AbortError") {
-        console.error("Timeout na chamada WhatsApp");
-      } else {
-        console.error("Erro ao enviar WhatsApp:", err);
+      } catch (err) {
+        if (err.name === "AbortError") {
+          console.error("Timeout na chamada WhatsApp");
+        } else {
+          console.error("Erro ao enviar WhatsApp:", err);
+        }
       }
     }
 

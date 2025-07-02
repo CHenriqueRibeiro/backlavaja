@@ -15,10 +15,6 @@ const io = new Server(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  socket.on("disconnect", () => {});
-});
-
 app.use(cors());
 app.use(express.json());
 

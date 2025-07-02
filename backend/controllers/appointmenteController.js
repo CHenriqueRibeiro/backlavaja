@@ -77,7 +77,13 @@ exports.bookAppointment = async (req, res) => {
         .json({ message: "ID de serviço ou estabelecimento inválido!" });
     }
 
-    const establishment = await Establishment.findById(establishmentId);
+    const establishment = await Establishment.findById(
+      establishmentId
+    ).populate("owner");
+    const instancePhone = establishment.owner?.phone;
+    const isConnected = establishment.owner?.whatsappConnection;
+    console.log("Instance Phone:", instancePhone);
+    console.log("Is Connected:", isConnected);
     if (!establishment) {
       return res
         .status(404)
@@ -168,35 +174,32 @@ exports.bookAppointment = async (req, res) => {
     const sanitizedPhone = `55${clientPhone.replace(/\D/g, "")}`;
     const whatsappBookingMessage = `Olá ${clientName}, o agendamento do(a) *${serviceName}* do(a) seu *${veiculo}* foi confirmado com sucesso para o dia *${formattedDate}* às *${startTime}*. Estamos esperando por você! 🚗✨`;
 
-    try {
-      const whatsappResponse = await fetch(
-        "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
-            Authorization:
-              "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
-          },
-          body: JSON.stringify({
-            number: sanitizedPhone,
-            text: whatsappBookingMessage,
-          }),
-        }
-      );
-
-      if (!whatsappResponse.ok) {
-        console.error(
-          "Erro ao enviar mensagem de confirmação no WhatsApp:",
-          await whatsappResponse.text()
+    if (isConnected) {
+      try {
+        const whatsappResponse = await fetch(
+          `http://localhost:8080/message/sendText/${instancePhone}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: "odLscVS5lhvKOQ2fTm05xy8EwEd8G8Fx",
+            },
+            body: JSON.stringify({
+              number: sanitizedPhone,
+              text: whatsappBookingMessage,
+            }),
+          }
         );
+
+        if (!whatsappResponse.ok) {
+          console.error(
+            "Erro ao enviar mensagem de status no WhatsApp:",
+            await whatsappResponse.text()
+          );
+        }
+      } catch (err) {
+        console.error("Erro ao tentar enviar WhatsApp:", err);
       }
-    } catch (whatsappError) {
-      console.error(
-        "Erro ao tentar enviar mensagem pelo WhatsApp:",
-        whatsappError
-      );
     }
 
     if (!selectedService.concurrentService) {
@@ -257,6 +260,18 @@ exports.updateAppointmentStatus = async (req, res) => {
     appointment.status = status;
     await appointment.save();
 
+    const establishment = await Establishment.findById(
+      appointment.establishment
+    ).populate("owner");
+    if (!establishment) {
+      return res
+        .status(404)
+        .json({ message: "Estabelecimento não encontrado." });
+    }
+
+    const instancePhone = establishment.owner?.phone;
+    const isConnected = establishment.owner?.whatsappConnection;
+
     if (status?.trim().toLowerCase() === "entregue") {
       const produtos = await Product.find({
         estabelecimento: appointment.establishment,
@@ -312,25 +327,32 @@ exports.updateAppointmentStatus = async (req, res) => {
       `O status do seu agendamento foi alterado para: *${status}*`;
     const sanitizedPhone = `55${appointment.clientPhone.replace(/\D/g, "")}`;
 
-    const whatsappResponse = await fetch(
-      "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
-          Authorization:
-            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y", // mantenha o seu token real
-        },
-        body: JSON.stringify({ number: sanitizedPhone, text: messageToSend }),
-      }
-    );
+    if (isConnected) {
+      try {
+        const whatsappResponse = await fetch(
+          `http://localhost:8080/message/sendText/${instancePhone}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: "odLscVS5lhvKOQ2fTm05xy8EwEd8G8Fx",
+            },
+            body: JSON.stringify({
+              number: sanitizedPhone,
+              text: messageToSend,
+            }),
+          }
+        );
 
-    if (!whatsappResponse.ok) {
-      console.error(
-        "Erro ao enviar mensagem de status no WhatsApp:",
-        await whatsappResponse.text()
-      );
+        if (!whatsappResponse.ok) {
+          console.error(
+            "Erro ao enviar mensagem de status no WhatsApp:",
+            await whatsappResponse.text()
+          );
+        }
+      } catch (err) {
+        console.error("Erro ao tentar enviar WhatsApp:", err);
+      }
     }
 
     return res

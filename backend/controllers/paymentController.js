@@ -92,8 +92,6 @@ exports.createPayment = async (req, res) => {
 
 exports.webhook = async (req, res) => {
   try {
-    console.log("🔔 Webhook recebido:", req.body);
-
     const { type, data } = req.body;
 
     if (type === "payment" && data && data.id) {

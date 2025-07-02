@@ -14,7 +14,10 @@ const serviceRouter = require("./servicesRouter");
 const appointmentsRouter = require("./appointmenteRouter");
 const availabilityRouter = require("./availabilityRouter");
 const authMiddleware = require("../authMiddleware/auth");
+const webhookRouter = require("./webhookRouter");
+const evolutionRouter = require("./evolutionRouter");
 
+router.use("/evolution", evolutionRouter);
 router.use("/services", authMiddleware, serviceRouter);
 router.use("/auth", loginOwner);
 router.use("/establishment", authMiddleware, establishmentRouter);
@@ -27,4 +30,5 @@ router.use("/products", productsRouter);
 router.use("/budget", budgetRouter);
 router.use("/appointments", appointmentsRouter);
 router.use("/availability", availabilityRouter);
+router.use("/webhook", webhookRouter);
 module.exports = router;

@@ -38,7 +38,7 @@ cron.schedule("* * * * *", async () => {
       }* do dia *${formatDateForWhatsApp(appointment.date)}*. Até breve!`;
 
       const response = await fetch(
-        "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
+        "http://localhost:8080/message/sendText/instance",
         {
           method: "POST",
           headers: {

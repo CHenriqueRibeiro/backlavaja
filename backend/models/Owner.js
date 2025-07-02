@@ -18,7 +18,10 @@ const ownerSchema = new mongoose.Schema(
       estabelecimento: { type: Boolean, default: false },
       servico: { type: Boolean, default: false },
     },
-
+    whatsappConnection: {
+      type: Boolean,
+      default: false,
+    },
     historicoStatus: [
       {
         status: {

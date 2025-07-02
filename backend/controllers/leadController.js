@@ -79,6 +79,7 @@ exports.createLead = async (req, res) => {
       password: hashedPassword,
       isTemporaryPassword: true,
       statusConta: "teste",
+      whatsappConnection: false,
       dataLimite,
       historicoStatus: [
         {

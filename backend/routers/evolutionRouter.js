@@ -4,6 +4,7 @@ const evolutionController = require("../controllers/evolutionController");
 
 router.post("/webhook/receive", evolutionController.webhookReceiver);
 router.post("/instance/create", evolutionController.createInstance);
-router.post("/instance/consult", evolutionController.connectInstance);
+router.post("/instance/consult", evolutionController.consultInstance);
+router.post("/instance/connect", evolutionController.connectInstance);
 
 module.exports = router;

@@ -16,7 +16,9 @@ const availabilityRouter = require("./availabilityRouter");
 const authMiddleware = require("../authMiddleware/auth");
 const webhookRouter = require("./webhookRouter");
 const evolutionRouter = require("./evolutionRouter");
+const mcpRouter = require("./mcpRouter");
 
+router.use("/mcp", mcpRouter); // aqui você insere
 router.use("/evolution", evolutionRouter);
 router.use("/services", authMiddleware, serviceRouter);
 router.use("/auth", loginOwner);

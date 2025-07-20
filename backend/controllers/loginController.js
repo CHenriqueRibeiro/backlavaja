@@ -32,6 +32,7 @@ const loginOwner = async (req, res) => {
       requirePasswordChange: owner.isTemporaryPassword,
       statusConta: owner.statusConta,
       dataLimite: owner.dataLimite,
+      plan: owner.historicoStatus?.[owner.historicoStatus.length - 1],
       owner: {
         id: owner._id,
         email: owner.email,

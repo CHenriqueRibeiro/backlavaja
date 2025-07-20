@@ -3,6 +3,8 @@ const fetch = require("node-fetch");
 const Appointment = require("../models/Appointment");
 const Establishment = require("../models/Establishment");
 const Product = require("../models/Product");
+const streamifier = require("streamifier");
+const Owner = require("../models/Owner");
 function converterParaML(valor, unidade) {
   switch (unidade) {
     case "L":
@@ -34,6 +36,7 @@ const formatDateForWhatsApp = (date) => {
 };
 
 exports.bookAppointment = async (req, res) => {
+    const cloudinary = require("../config/cloudinary");
   try {
     const {
       clientName,
@@ -49,6 +52,29 @@ exports.bookAppointment = async (req, res) => {
       endTime,
       reminderWhatsapp,
     } = req.body;
+
+    let fotos = [];
+    if (req.files && req.files.fotos && req.files.fotos.length > 0) {
+      for (const file of req.files.fotos) {
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              resource_type: "image",
+              folder: "agendamentos",
+              public_id: `foto-agendamento-${Date.now()}-${Math.floor(Math.random() * 99999)}`,
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          streamifier.createReadStream(file.buffer).pipe(uploadStream);
+        });
+        fotos.push(uploadResult.secure_url);
+      }
+    } else if (Array.isArray(req.body.fotos)) {
+      fotos = req.body.fotos;
+    }
 
     if (
       !clientName ||
@@ -82,6 +108,24 @@ exports.bookAppointment = async (req, res) => {
       return res
         .status(404)
         .json({ message: "Estabelecimento não encontrado!" });
+    }
+
+    let plano = "teste";
+    if (establishment.owner) {
+      const owner = await Owner.findById(establishment.owner);
+      if (owner && Array.isArray(owner.historicoStatus) && owner.historicoStatus.length > 0) {
+        plano = owner.historicoStatus[owner.historicoStatus.length - 1].plano || "teste";
+      }
+    }
+    const maxPhotosByPlan = {
+      "teste": 2,
+      "simples": 2,
+      "profissional": 5,
+      "completo": 10,
+    };
+    const maxPhotos = maxPhotosByPlan[plano] ?? 2;
+    if (Array.isArray(fotos) && fotos.length > maxPhotos) {
+      return res.status(400).json({ message: `Seu plano permite apenas ${maxPhotos} fotos por agendamento.` });
     }
 
     const selectedService = establishment.services.find(
@@ -161,6 +205,7 @@ exports.bookAppointment = async (req, res) => {
       startTime,
       endTime,
       reminderWhatsapp,
+      fotos,
     });
 
     await appointment.save();
@@ -320,7 +365,7 @@ exports.updateAppointmentStatus = async (req, res) => {
           "Content-Type": "application/json",
           DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
           Authorization:
-            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y", // mantenha o seu token real
+            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
         },
         body: JSON.stringify({ number: sanitizedPhone, text: messageToSend }),
       }
@@ -600,3 +645,103 @@ exports.deleteAppointment = async (req, res) => {
     });
   }
 };
+
+exports.updateAppointmentPhotos = async (req, res) => {
+  const cloudinary = require("../config/cloudinary");
+  const streamifier = require("streamifier");
+  const { id } = req.params;
+
+  try {
+    const appointment = await Appointment.findById(id);
+    if (!appointment) {
+      return res.status(404).json({ message: "Agendamento não encontrado." });
+    }
+
+    const establishment = await Establishment.findById(appointment.establishment);
+    let plano = "teste";
+    if (establishment?.owner) {
+      const owner = await Owner.findById(establishment.owner);
+      if (owner && Array.isArray(owner.historicoStatus) && owner.historicoStatus.length > 0) {
+        plano = owner.historicoStatus[owner.historicoStatus.length - 1].plano || "teste";
+      }
+    }
+    const maxPhotosByPlan = {
+      "teste": 2,
+      "simples": 2,
+      "profissional": 5,
+      "completo": 10,
+    };
+    const maxPhotos = maxPhotosByPlan[plano] ?? 2;
+
+    const fotosAntigas = appointment.fotos || [];
+
+    let fotos = [];
+    if (req.body.fotos) {
+      if (Array.isArray(req.body.fotos)) fotos = [...req.body.fotos];
+      else if (typeof req.body.fotos === "string") fotos = [req.body.fotos];
+    }
+
+    let novasFotos = [];
+    if (req.files && req.files.fotos && req.files.fotos.length > 0) {
+      for (const file of req.files.fotos) {
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              resource_type: "image",
+              folder: "agendamentos",
+              public_id: `foto-agendamento-${Date.now()}-${Math.floor(Math.random() * 99999)}`,
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          streamifier.createReadStream(file.buffer).pipe(uploadStream);
+        });
+        novasFotos.push(uploadResult.secure_url);
+      }
+    }
+
+    if (fotos.length + novasFotos.length > maxPhotos) {
+      return res.status(400).json({
+        message: `Seu plano permite no máximo ${maxPhotos} fotos por agendamento.`,
+      });
+    }
+    const fotosAtualizadas = [...fotos, ...novasFotos];
+
+    const fotosRemovidas = fotosAntigas.filter(
+      (urlAntiga) => !fotosAtualizadas.includes(urlAntiga)
+    );
+
+    for (const urlRemovida of fotosRemovidas) {
+      try {
+        const matches = urlRemovida.match(/\/agendamentos\/(foto-agendamento-\d+-\d+)/);
+        if (matches) {
+          const publicId = `agendamentos/${matches[1]}`;
+          await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+        }
+      } catch (e) {
+        console.error("Erro ao apagar imagem do Cloudinary:", e.message);
+      }
+    }
+
+    appointment.fotos = fotosAtualizadas;
+    await appointment.save();
+
+    return res.status(200).json({
+      message: "Foto(s) atualizada(s) com sucesso.",
+      appointment,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar fotos do agendamento:", error);
+    return res.status(500).json({
+      message: "Erro ao atualizar fotos do agendamento.",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
+

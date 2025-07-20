@@ -21,6 +21,7 @@ const appointmentSchema = new mongoose.Schema({
   date: { type: String, required: true },
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
+  fotos: [{ type: String }],
 });
 
 const Appointment = mongoose.model("Appointment", appointmentSchema);

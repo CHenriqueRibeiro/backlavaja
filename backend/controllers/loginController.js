@@ -32,6 +32,7 @@ const loginOwner = async (req, res) => {
       requirePasswordChange: owner.isTemporaryPassword,
       statusConta: owner.statusConta,
       dataLimite: owner.dataLimite,
+      establishmentId: owner.establishments[0],
       plan: owner.historicoStatus?.[owner.historicoStatus.length - 1],
       owner: {
         id: owner._id,
@@ -39,6 +40,7 @@ const loginOwner = async (req, res) => {
         name: owner.name,
       },
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erro no servidor!" });

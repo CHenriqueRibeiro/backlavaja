@@ -42,8 +42,14 @@ exports.getPublicServiceSlots = async (req, res) => {
     const { establishmentId, serviceId } = req.params;
     const { date } = req.query;
 
-    const service = await Service.findById(serviceId).lean();
-    if (!service) return res.status(404).json({ message: "Serviço não encontrado." });
+    const [service, establishment] = await Promise.all([
+      Service.findById(serviceId).lean(),
+      Establishment.findById(establishmentId).lean()
+    ]);
+
+    if (!service || !establishment) {
+      return res.status(404).json({ message: "Serviço ou estabelecimento não encontrado." });
+    }
 
     const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const dataDate = new Date(date + "T00:00:00");
@@ -53,22 +59,39 @@ exports.getPublicServiceSlots = async (req, res) => {
     if (!diaDisponivel)
       return res.status(400).json({ message: "Serviço não disponível para este dia." });
 
+    const hasLunchBreak = establishment.openingHours?.hasLunchBreak;
+    const intervalStart = establishment.openingHours?.intervalOpen;
+    const intervalEnd = establishment.openingHours?.intervalClose;
+
     let slots = [];
     for (const faixa of diaDisponivel.availableHours) {
-      let start = faixa.start;
-      let end = faixa.end;
-      let [hStart, mStart] = start.split(":").map(Number);
-      let [hEnd, mEnd] = end.split(":").map(Number);
-     const slotSize = service.duration || 30;
-const startMin = hStart * 60 + mStart;
-const endMin = hEnd * 60 + mEnd;
-for (let min = startMin; min + slotSize <= endMin; min += slotSize) {
-  const slotH = Math.floor(min / 60);
-  const slotM = min % 60;
-  const slotTime = `${slotH.toString().padStart(2, '0')}:${slotM.toString().padStart(2, '0')}`;
-  slots.push(slotTime);
-}
+      let [hStart, mStart] = faixa.start.split(":").map(Number);
+      let [hEnd, mEnd] = faixa.end.split(":").map(Number);
 
+      const slotSize = service.duration || 30;
+      const startMin = hStart * 60 + mStart;
+      const endMin = hEnd * 60 + mEnd;
+
+      for (let min = startMin; min + slotSize <= endMin; min += slotSize) {
+        const slotH = Math.floor(min / 60);
+        const slotM = min % 60;
+        const slotTime = `${slotH.toString().padStart(2, '0')}:${slotM.toString().padStart(2, '0')}`;
+
+        if (hasLunchBreak && intervalStart && intervalEnd) {
+          const [intHStart, intMStart] = intervalStart.split(":").map(Number);
+          const [intHEnd, intMEnd] = intervalEnd.split(":").map(Number);
+
+          const intervalMinStart = intHStart * 60 + intMStart;
+          const intervalMinEnd = intHEnd * 60 + intMEnd;
+
+          const slotEndMin = min + slotSize;
+
+          const overlapsInterval = min < intervalMinEnd && slotEndMin > intervalMinStart;
+          if (overlapsInterval) continue;
+        }
+
+        slots.push(slotTime);
+      }
     }
 
     const appointments = await Appointment.find({
@@ -78,7 +101,6 @@ for (let min = startMin; min + slotSize <= endMin; min += slotSize) {
     }).lean();
 
     const ocupados = appointments.map(a => a.startTime);
-
     const disponiveis = slots.filter(s => !ocupados.includes(s));
 
     res.json({ slots: disponiveis });

@@ -16,7 +16,15 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  socket.on("disconnect", () => {});
+  console.log("🔗 Novo socket conectado:", socket.id);
+
+  socket.on("join_establishment_room", (establishmentId) => {
+    socket.join(establishmentId);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔌 Socket desconectado:", socket.id);
+  });
 });
 
 app.use(cors());

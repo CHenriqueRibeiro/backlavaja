@@ -1,3 +1,4 @@
+const { getIO } = require("../config/socket"); 
 const Establishment = require("../models/Establishment");
 const Service = require("../models/Service");
 const Appointment = require("../models/Appointment");
@@ -91,13 +92,16 @@ exports.bookPublicAppointment = async (req, res) => {
   try {
     const { establishmentId, serviceId } = req.params;
     const { clientName, clientPhone, veiculo, date, startTime } = req.body;
+
     const service = await Service.findById(serviceId).lean();
-    if (!service) return res.status(404).json({ message: "Serviço não encontrado." });
+    if (!service) {
+      return res.status(404).json({ message: "Serviço não encontrado." });
+    }
 
     const [h, m] = startTime.split(':').map(Number);
     const duration = service.duration || 30;
     const endDate = new Date(2000, 0, 1, h, m + duration);
-    const endTime = endDate.toTimeString().slice(0,5);
+    const endTime = endDate.toTimeString().slice(0, 5);
 
     const overlapping = await Appointment.findOne({
       establishment: establishmentId,
@@ -106,6 +110,7 @@ exports.bookPublicAppointment = async (req, res) => {
       startTime: { $lt: endTime },
       endTime: { $gt: startTime }
     });
+
     if (overlapping) {
       return res.status(409).json({ message: "Horário já agendado." });
     }
@@ -124,8 +129,27 @@ exports.bookPublicAppointment = async (req, res) => {
       endTime
     });
 
+    const io = getIO();
+    if (io) {
+      io.to(establishmentId.toString()).emit("novo_agendamento", {
+        appointmentId: appointment._id,
+        clientName,
+        clientPhone,
+        veiculo,
+        serviceName: service.name,
+        price: service.price,
+        date,
+        startTime,
+        endTime
+      });
+    } else {
+      console.warn("⚠️ io (WebSocket) não foi inicializado.");
+    }
+
     res.status(201).json({ message: "Agendamento criado com sucesso!", appointment });
+
   } catch (error) {
+    console.error("Erro ao criar agendamento:", error);
     res.status(500).json({ message: "Erro ao criar agendamento.", error: error.message });
   }
 };

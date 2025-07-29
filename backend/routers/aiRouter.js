@@ -13,5 +13,7 @@ router.get(
   "/mais-frequentes/:establishmentId",
   iaController.clientesMaisFrequentes
 );
+router.post('/precificacao/:establishmentId', iaController.precificacaoComIA);
+
 
 module.exports = router;

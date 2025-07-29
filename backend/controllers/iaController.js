@@ -461,9 +461,7 @@ Margem de lucro desejada: ${margemLucro}%
 Custo por hora: R$ ${custoPorHora.toFixed(2)}
 Preço por hora com margem: R$ ${precoHoraComLucro.toFixed(2)}
 Faturamento necessário no mês: R$ ${faturamentoNecessario.toFixed(2)}
-
-Análise por serviço:
-${analiseServicosTexto}`;
+`;
 
     const prompt = `Gere uma resposta objetiva e clara para um cliente de estética automotiva.
 Apresente os dados como uma simulação de precificação, explicando os valores e sugerindo ajustes se necessário.

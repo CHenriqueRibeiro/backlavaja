@@ -15,7 +15,9 @@ const serviceRouter = require("./servicesRouter");
 const appointmentsRouter = require("./appointmenteRouter");
 const availabilityRouter = require("./availabilityRouter");
 const authMiddleware = require("../authMiddleware/auth");
+const whatsappRouter = require("./whatsappRouter");
 
+router.use("/whatsapp", whatsappRouter);
 router.use("/services", authMiddleware, serviceRouter);
 router.use("/auth", loginOwner);
 router.use("/establishment", authMiddleware, establishmentRouter);

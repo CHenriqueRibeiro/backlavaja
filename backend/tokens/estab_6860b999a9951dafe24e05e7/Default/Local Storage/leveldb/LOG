@@ -1,0 +1,14 @@
+2025/08/07-23:42:31.242 dbef Reusing MANIFEST /home/henrique/Área de Trabalho/backlavaja/backend/tokens/estab_6860b999a9951dafe24e05e7/Default/Local Storage/leveldb/MANIFEST-000001
+2025/08/07-23:42:31.264 dbef Recovering log #10
+2025/08/07-23:42:31.265 dbef Reusing old log /home/henrique/Área de Trabalho/backlavaja/backend/tokens/estab_6860b999a9951dafe24e05e7/Default/Local Storage/leveldb/000010.log 
+2025/08/07-23:45:31.808 dbf1 Level-0 table #13: started
+2025/08/07-23:45:31.812 dbf1 Level-0 table #13: 18018 bytes OK
+2025/08/07-23:45:31.813 dbf1 Delete type=0 #10
+2025/08/07-23:45:31.814 dbf1 Compacting 4@0 + 0@1 files
+2025/08/07-23:45:31.815 dbf1 Generated table #14@0: 93 keys, 8626 bytes
+2025/08/07-23:45:31.815 dbf1 Compacted 4@0 + 0@1 files => 8626 bytes
+2025/08/07-23:45:31.816 dbf1 compacted to: files[ 0 1 0 0 0 0 0 ]
+2025/08/07-23:45:31.817 dbf1 Delete type=2 #13
+2025/08/07-23:45:31.817 dbf1 Delete type=2 #6
+2025/08/07-23:45:31.817 dbf1 Delete type=2 #3
+2025/08/07-23:45:31.817 dbf1 Delete type=2 #9

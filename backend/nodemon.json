@@ -1,0 +1,10 @@
+{
+  "watch": ["server.js", "controllers", "routers", "services", "models"],
+  "ext": "js,mjs,cjs",
+  "ignore": [
+    "tokens/**/*",
+    "logs/**/*",
+    "node_modules/**/*",
+    ".git/**/*"
+  ]
+}

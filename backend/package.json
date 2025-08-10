@@ -3,14 +3,17 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "start": "nodemon server.js"
+ "scripts": {
+    "dev": "nodemon --config nodemon.json server.js",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "-": "^0.0.1",
+    "@wppconnect-team/wppconnect": "^1.37.3",
+    "@wppconnect/wa-js": "github:wppconnect-team/wa-js",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const fetch = require("node-fetch");
+const { sendTextMessage } = require('../services/waService'); // << ADD
 const Appointment = require("../models/Appointment");
 const Establishment = require("../models/Establishment");
 const Product = require("../models/Product");
@@ -209,40 +210,33 @@ exports.bookAppointment = async (req, res) => {
     });
 
     await appointment.save();
-    const formattedDate = formatDateForWhatsApp(date);
-    const sanitizedPhone = `55${clientPhone.replace(/\D/g, "")}`;
-    const whatsappBookingMessage = `Olá ${clientName}, o agendamento do(a) *${serviceName}* do(a) seu *${veiculo}* foi confirmado com sucesso para o dia *${formattedDate}* às *${startTime}*. Estamos esperando por você! 🚗✨`;
 
-    try {
-      const whatsappResponse = await fetch(
-        "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
-            Authorization:
-              "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
-          },
-          body: JSON.stringify({
-            number: sanitizedPhone,
-            text: whatsappBookingMessage,
-          }),
-        }
-      );
+const formattedDate = formatDateForWhatsApp(date);
+const sanitizedPhone = `55${clientPhone.replace(/\D/g, "")}`;
+const whatsappBookingMessage =
+  `Olá ${clientName}, o agendamento do(a) *${serviceName}* do(a) seu *${veiculo}* ` +
+  `foi confirmado com sucesso para o dia *${formattedDate}* às *${startTime}*. ` +
+  `Estamos esperando por você! 🚗✨`;
 
-      if (!whatsappResponse.ok) {
-        console.error(
-          "Erro ao enviar mensagem de confirmação no WhatsApp:",
-          await whatsappResponse.text()
-        );
-      }
-    } catch (whatsappError) {
-      console.error(
-        "Erro ao tentar enviar mensagem pelo WhatsApp:",
-        whatsappError
-      );
-    }
+const sessionName = `estab_${establishmentId}`;
+try {
+  const result = await sendTextMessage(sessionName, sanitizedPhone, whatsappBookingMessage);
+
+} catch (err) {
+  if (err?.code === 'SESSION_NOT_ACTIVE') {
+    console.warn(`[WA:SESSION_NOT_ACTIVE] ${sessionName} -> ${sanitizedPhone}`);
+  } else {
+    console.error('[WA:ERROR]', {
+      sessionName,
+      to: sanitizedPhone,
+      error: err?.message || String(err),
+    });
+  }
+}
+
+
+// >>> segue o restante (atualização de availability, etc) SEM mais if/catch do gateway
+
 
     if (!selectedService.concurrentService) {
       selectedService.availability = selectedService.availability.map((a) => {
@@ -353,30 +347,22 @@ exports.updateAppointmentStatus = async (req, res) => {
     };
 
     const messageToSend =
-      statusMessages[status] ||
-      `O status do seu agendamento foi alterado para: *${status}*`;
-    const sanitizedPhone = `55${appointment.clientPhone.replace(/\D/g, "")}`;
+  statusMessages[status] || `O status do seu agendamento foi alterado para: *${status}*`;
 
-    const whatsappResponse = await fetch(
-      "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
-          Authorization:
-            "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
-        },
-        body: JSON.stringify({ number: sanitizedPhone, text: messageToSend }),
-      }
-    );
+const sanitizedPhone = `55${appointment.clientPhone.replace(/\D/g, "")}`;
+const sessionName = `estab_${appointment.establishment}`; // ou como você nomeia suas sessões
 
-    if (!whatsappResponse.ok) {
-      console.error(
-        "Erro ao enviar mensagem de status no WhatsApp:",
-        await whatsappResponse.text()
-      );
-    }
+try {
+  await sendTextMessage(sessionName, sanitizedPhone, messageToSend);
+} catch (err) {
+  if (err?.code === 'SESSION_NOT_ACTIVE') {
+    console.warn(`[${sessionName}] sessão não ativa — notifique o front para conectar o WhatsApp.`);
+    // opcional: não trate como erro fatal do endpoint de status
+  } else {
+    console.error('Falha ao enviar mensagem de status no WhatsApp:', err);
+  }
+}
+
 
     return res
       .status(200)

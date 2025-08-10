@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const Appointment = require("../models/Appointment");
 const Establishment = require("../models/Establishment");
 const Product = require("../models/Product");
+const Cost = require('../models/Cost');  
 const streamifier = require("streamifier");
 const Owner = require("../models/Owner");
 function converterParaML(valor, unidade) {
@@ -51,6 +52,8 @@ exports.bookAppointment = async (req, res) => {
       startTime,
       endTime,
       reminderWhatsapp,
+      origin,
+
     } = req.body;
 
     let fotos = [];
@@ -87,7 +90,8 @@ exports.bookAppointment = async (req, res) => {
       !establishmentId ||
       !date ||
       !startTime ||
-      !endTime
+      !endTime ||
+      !origin
     ) {
       return res
         .status(400)
@@ -206,6 +210,7 @@ exports.bookAppointment = async (req, res) => {
       endTime,
       reminderWhatsapp,
       fotos,
+      origin,
     });
 
     await appointment.save();
@@ -392,55 +397,160 @@ exports.updateAppointmentStatus = async (req, res) => {
 exports.getDashboardReport = async (req, res) => {
   try {
     const { establishmentId, startDate, endDate } = req.query;
-
     if (!establishmentId || !startDate || !endDate) {
-      return res.status(400).json({
-        message: "Parâmetros obrigatórios: establishmentId, startDate, endDate",
-      });
+      return res.status(400).json({ message: "Parâmetros obrigatórios: establishmentId, startDate, endDate" });
     }
 
+    // janelas (para Cost/Products)
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    const end   = new Date(`${endDate}T23:59:59.999Z`);
+
+    // ----------------- APPOINTMENTS (somente Entregue) -----------------
     const appointments = await Appointment.find({
       establishment: establishmentId,
-      date: { $gte: startDate, $lte: endDate },
+      date: { $gte: startDate, $lte: endDate },   // string YYYY-MM-DD no seu schema
       status: "Entregue",
-    });
+    }).lean();
 
-    const totalRevenue = appointments.reduce(
-      (acc, curr) => acc + curr.price,
-      0
-    );
+    const totalRevenue = appointments.reduce((acc, curr) => acc + (curr.price || 0), 0);
 
     const serviceTypesMap = {};
     const paymentMethodsMap = { Cartao: 0, Dinheiro: 0, Pix: 0 };
     const reservedHoursMap = {};
-    const weeklyRevenueByDay = {
-      Dom: 0,
-      Seg: 0,
-      Ter: 0,
-      Qua: 0,
-      Qui: 0,
-      Sex: 0,
-      Sáb: 0,
-    };
+    const weeklyRevenueByDay = { Dom: 0, Seg: 0, Ter: 0, Qua: 0, Qui: 0, Sex: 0, Sáb: 0 };
+    const origins = { Sistema: 0, Link: 0 };
+
+    // 👇 NOVO: receita por dia (YYYY-MM-DD)
+    const revenueByDay = {};
 
     appointments.forEach((a) => {
-      if (!serviceTypesMap[a.serviceName]) {
-        serviceTypesMap[a.serviceName] = 0;
-      }
+      if (!serviceTypesMap[a.serviceName]) serviceTypesMap[a.serviceName] = 0;
       serviceTypesMap[a.serviceName]++;
 
-      const hourKey = `${a.startTime.slice(0, 2)}h`;
+      const hourKey = `${a.startTime?.slice(0, 2)}h`;
       if (!reservedHoursMap[hourKey]) reservedHoursMap[hourKey] = 0;
       reservedHoursMap[hourKey]++;
 
-      const weekday = new Date(a.date).toLocaleDateString("pt-BR", {
-        weekday: "short",
-      });
-      const formattedDay =
-        weekday.charAt(0).toUpperCase() + weekday.slice(1, 3);
+      const weekday = new Date(a.date).toLocaleDateString("pt-BR", { weekday: "short" });
+      const formattedDay = weekday.charAt(0).toUpperCase() + weekday.slice(1, 3);
       if (weeklyRevenueByDay[formattedDay] !== undefined) {
-        weeklyRevenueByDay[formattedDay] += a.price;
+        weeklyRevenueByDay[formattedDay] += (a.price || 0);
       }
+
+      const o = String(a.origin || "").trim().toLowerCase();
+      if (o === "sistema") origins.Sistema++;
+      else if (o === "link") origins.Link++;
+
+      // receita por dia (a.date já está em "YYYY-MM-DD")
+      const dayKey = a.date;
+      revenueByDay[dayKey] = (revenueByDay[dayKey] || 0) + (a.price || 0);
+    });
+
+    // ----------------- TOP CLIENTES (como você já fez) -----------------
+    const cleanPhone = (s) => {
+      if (!s) return null;
+      let d = String(s).replace(/\D/g, "");
+      if (d.length > 11) d = d.slice(-11);
+      return d || null;
+    };
+
+    const customersAgg = {};
+    for (const a of appointments) {
+      const phone = cleanPhone(a.clientPhone);
+      if (!phone) continue;
+      if (!customersAgg[phone]) {
+        customersAgg[phone] = { phone, name: a.clientName || "Cliente", count: 0, totalSpent: 0, lastDate: null };
+      }
+      customersAgg[phone].count += 1;
+      customersAgg[phone].totalSpent += Number(a.price || 0);
+      const d = new Date(`${a.date}T00:00:00`);
+      if (!customersAgg[phone].lastDate || d > customersAgg[phone].lastDate) {
+        customersAgg[phone].lastDate = d;
+      }
+    }
+
+    const topCustomers = Object.values(customersAgg)
+      .filter((c) => c.count >= 2)
+      .sort((a, b) => b.count - a.count || b.totalSpent - a.totalSpent)
+      .slice(0, 20)
+      .map((c) => ({
+        phone: c.phone,
+        name: c.name,
+        count: c.count,
+        totalSpent: c.totalSpent,
+        lastDate: c.lastDate?.toISOString().slice(0, 10),
+      }));
+
+    // ----------------- CUSTOS FIXOS -----------------
+    const costs = await Cost.find({
+      establishment: establishmentId,
+      date: { $gte: start, $lte: end },
+    }).lean();
+
+    const fixedByType = {};
+    const fixedByDay  = {};
+    let fixedTotal = 0;
+
+    for (const c of costs) {
+      const val = Number(c.value || 0);
+      const type = c.type || 'Outros';
+      fixedByType[type] = (fixedByType[type] || 0) + val;
+      fixedTotal += val;
+
+      const dayKey = new Date(c.date).toISOString().slice(0,10);
+      fixedByDay[dayKey] = (fixedByDay[dayKey] || 0) + val;
+    }
+
+    // ----------------- CUSTOS VARIÁVEIS (Produtos → entradas) -----------------
+    const products = await Product.find({ estabelecimento: establishmentId }).lean();
+
+    const variableByProduct = {};
+    const variableByDay = {};
+    let variableTotal = 0;
+
+    for (const p of products) {
+      for (const e of (p.entradas || [])) {
+        const d = new Date(e.data);
+        if (isNaN(d.getTime()) || d < start || d > end) continue;
+
+        const entryTotal = Number(e.precoTotal ?? e.precoUnitario ?? 0);
+        // (troque se precisar: precoUnitario * quantidade)
+
+        variableByProduct[p.name || 'Sem nome'] =
+          (variableByProduct[p.name || 'Sem nome'] || 0) + entryTotal;
+        variableTotal += entryTotal;
+
+        const dayKey = d.toISOString().slice(0,10);
+        variableByDay[dayKey] = (variableByDay[dayKey] || 0) + entryTotal;
+      }
+    }
+
+    // ----------------- TOTAIS + TIMESERIES COMPARATIVO -----------------
+    const totalCosts = fixedTotal + variableTotal;
+    const grossProfit = totalRevenue - totalCosts;
+
+    // soma custos fixos + variáveis por dia
+    const costsByDay = {};
+    // começa com fixos
+    Object.entries(fixedByDay).forEach(([day, val]) => {
+      costsByDay[day] = (costsByDay[day] || 0) + val;
+    });
+    // adiciona variáveis
+    Object.entries(variableByDay).forEach(([day, val]) => {
+      costsByDay[day] = (costsByDay[day] || 0) + val;
+    });
+
+    // net por dia (receita - custo)
+    const netByDay = {};
+    // percorre os dias existentes em ambos
+    const allDays = new Set([
+      ...Object.keys(revenueByDay),
+      ...Object.keys(costsByDay),
+    ]);
+    allDays.forEach((k) => {
+      const r = revenueByDay[k] || 0;
+      const c = costsByDay[k] || 0;
+      netByDay[k] = r - c;
     });
 
     return res.json({
@@ -449,14 +559,31 @@ exports.getDashboardReport = async (req, res) => {
       paymentMethods: paymentMethodsMap,
       reservedHours: reservedHoursMap,
       weeklyRevenueByDay,
+      origins,
+      topCustomers,
+
+      costs: {
+        fixed: { total: fixedTotal, byType: fixedByType, byDay: fixedByDay },
+        variable: { total: variableTotal, byProduct: variableByProduct, byDay: variableByDay },
+        totalAll: totalCosts,
+        grossProfit,
+      },
+
+      // 👇 NOVO BLOCO PARA O GRÁFICO COMPARATIVO
+      timeseries: {
+        revenueByDay,   // { "2025-07-20": 120, ... }
+        costsByDay,     // { "2025-07-20": 80,  ... }
+        netByDay,       // { "2025-07-20": 40,  ... }
+      },
     });
   } catch (error) {
     console.error("Erro no dashboard:", error);
-    return res
-      .status(500)
-      .json({ message: "Erro ao gerar relatório.", error: error.message });
+    return res.status(500).json({ message: "Erro ao gerar relatório.", error: error.message });
   }
 };
+
+
+
 
 exports.getAppointmentsByEstablishment = async (req, res) => {
   try {

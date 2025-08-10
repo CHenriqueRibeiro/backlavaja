@@ -19,6 +19,7 @@ const appointmentSchema = new mongoose.Schema({
     required: true,
   },
   date: { type: String, required: true },
+  origin: { type: String, required: true },
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
   fotos: [{ type: String }],

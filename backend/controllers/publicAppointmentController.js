@@ -113,7 +113,7 @@ exports.getPublicServiceSlots = async (req, res) => {
 exports.bookPublicAppointment = async (req, res) => {
   try {
     const { establishmentId, serviceId } = req.params;
-    const { clientName, clientPhone, veiculo, date, startTime } = req.body;
+    const { clientName, clientPhone, veiculo, date, startTime, origin } = req.body;
 
     const service = await Service.findById(serviceId).lean();
     if (!service) {
@@ -148,7 +148,7 @@ exports.bookPublicAppointment = async (req, res) => {
       establishment: establishmentId,
       date,
       startTime,
-      endTime
+      endTime,origin
     });
 
     const io = getIO();

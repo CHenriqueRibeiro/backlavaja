@@ -1,12 +1,11 @@
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const Owner = require("../models/Owner");
 
 const SECRET_KEY = process.env.SECRET_KEY;
 
 const loginOwner = async (req, res) => {
   const { email, password } = req.body;
-
   if (!SECRET_KEY) {
     return res
       .status(500)

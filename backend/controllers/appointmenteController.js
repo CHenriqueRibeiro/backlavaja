@@ -5,6 +5,7 @@ const Establishment = require("../models/Establishment");
 const Product = require("../models/Product");
 const Cost = require('../models/Cost');  
 const streamifier = require("streamifier");
+const Client = require("../models/Clients");
 const Owner = require("../models/Owner");
 function converterParaML(valor, unidade) {
   switch (unidade) {
@@ -37,12 +38,13 @@ const formatDateForWhatsApp = (date) => {
 };
 
 exports.bookAppointment = async (req, res) => {
-    const cloudinary = require("../config/cloudinary");
+  const cloudinary = require("../config/cloudinary");
+
   try {
     const {
       clientName,
       clientPhone,
-      veiculo,
+      veiculos,
       serviceName,
       price,
       status,
@@ -53,10 +55,21 @@ exports.bookAppointment = async (req, res) => {
       endTime,
       reminderWhatsapp,
       origin,
-
+      criarCliente,
     } = req.body;
 
+    // ✅ Garante boolean seguro
+    const criarClienteBoolean = String(criarCliente) === "true";
+
+    // ✅ Garante veiculo seguro (aceita string ou array)
+    const veiculo = Array.isArray(veiculos) ? veiculos[0] : veiculos;
+
+    // ✅ Normaliza telefone (remove tudo que não for número)
+    const normalizePhone = (phone) => phone?.replace(/\D/g, "");
+    const telefoneNormalizado = normalizePhone(clientPhone);
+
     let fotos = [];
+
     if (req.files && req.files.fotos && req.files.fotos.length > 0) {
       for (const file of req.files.fotos) {
         const uploadResult = await new Promise((resolve, reject) => {
@@ -64,7 +77,9 @@ exports.bookAppointment = async (req, res) => {
             {
               resource_type: "image",
               folder: "agendamentos",
-              public_id: `foto-agendamento-${Date.now()}-${Math.floor(Math.random() * 99999)}`,
+              public_id: `foto-agendamento-${Date.now()}-${Math.floor(
+                Math.random() * 99999
+              )}`,
             },
             (error, result) => {
               if (error) reject(error);
@@ -73,6 +88,7 @@ exports.bookAppointment = async (req, res) => {
           );
           streamifier.createReadStream(file.buffer).pipe(uploadStream);
         });
+
         fotos.push(uploadResult.secure_url);
       }
     } else if (Array.isArray(req.body.fotos)) {
@@ -81,7 +97,7 @@ exports.bookAppointment = async (req, res) => {
 
     if (
       !clientName ||
-      !clientPhone ||
+      !telefoneNormalizado ||
       !veiculo ||
       !serviceName ||
       !price ||
@@ -102,9 +118,7 @@ exports.bookAppointment = async (req, res) => {
       !mongoose.Types.ObjectId.isValid(serviceId) ||
       !mongoose.Types.ObjectId.isValid(establishmentId)
     ) {
-      return res
-        .status(400)
-        .json({ message: "ID de serviço ou estabelecimento inválido!" });
+      return res.status(400).json({ message: "ID inválido!" });
     }
 
     const establishment = await Establishment.findById(establishmentId);
@@ -114,23 +128,44 @@ exports.bookAppointment = async (req, res) => {
         .json({ message: "Estabelecimento não encontrado!" });
     }
 
-    let plano = "teste";
-    if (establishment.owner) {
-      const owner = await Owner.findById(establishment.owner);
-      if (owner && Array.isArray(owner.historicoStatus) && owner.historicoStatus.length > 0) {
-        plano = owner.historicoStatus[owner.historicoStatus.length - 1].plano || "teste";
+    // ===============================
+    // ✅ LÓGICA DE CLIENTE
+    // ===============================
+
+    let clienteCriado = null;
+
+    if (criarClienteBoolean) {
+      let clienteExistente = await Client.findOne({
+        telefone: telefoneNormalizado,
+        establishment: establishmentId,
+      });
+
+      if (!clienteExistente) {
+        clienteExistente = await Client.create({
+          name: clientName.trim(),
+          telefone: telefoneNormalizado,
+          veiculos: [veiculo.trim()],
+          establishment: establishmentId,
+        });
+      } else {
+        const veiculoFormatado = veiculo.trim();
+
+        const jaExiste = clienteExistente.veiculos.some(
+          (v) => v.toLowerCase() === veiculoFormatado.toLowerCase()
+        );
+
+        if (!jaExiste) {
+          clienteExistente.veiculos.push(veiculoFormatado);
+          await clienteExistente.save();
+        }
       }
+
+      clienteCriado = clienteExistente;
     }
-    const maxPhotosByPlan = {
-      "teste": 2,
-      "simples": 2,
-      "profissional": 5,
-      "completo": 10,
-    };
-    const maxPhotos = maxPhotosByPlan[plano] ?? 2;
-    if (Array.isArray(fotos) && fotos.length > maxPhotos) {
-      return res.status(400).json({ message: `Seu plano permite apenas ${maxPhotos} fotos por agendamento.` });
-    }
+
+    // ===============================
+    // RESTANTE DA LÓGICA NORMAL
+    // ===============================
 
     const selectedService = establishment.services.find(
       (s) => s._id?.toString() === serviceId
@@ -141,8 +176,7 @@ exports.bookAppointment = async (req, res) => {
     }
 
     const [year, month, day] = date.split("-").map(Number);
-    const localDateAtMidnight = new Date(year, month - 1, day, 0, 0, 0);
-
+    const localDateAtMidnight = new Date(year, month - 1, day);
     const dayOfWeek = localDateAtMidnight.getDay();
 
     const daysOfWeek = [
@@ -162,9 +196,9 @@ exports.bookAppointment = async (req, res) => {
     );
 
     if (!availabilityDay) {
-      return res
-        .status(400)
-        .json({ message: `Serviço indisponível para ${capitalizedDay}` });
+      return res.status(400).json({
+        message: `Serviço indisponível para ${capitalizedDay}`,
+      });
     }
 
     const hourIsAvailable = availabilityDay.availableHours.some((h) => {
@@ -172,9 +206,9 @@ exports.bookAppointment = async (req, res) => {
     });
 
     if (!hourIsAvailable) {
-      return res
-        .status(400)
-        .json({ message: "Horário indisponível para esse serviço." });
+      return res.status(400).json({
+        message: "Horário indisponível para esse serviço.",
+      });
     }
 
     const overlappingAppointmentsCount = await Appointment.countDocuments({
@@ -189,16 +223,19 @@ exports.bookAppointment = async (req, res) => {
       (!selectedService.concurrentService &&
         overlappingAppointmentsCount > 0) ||
       (selectedService.concurrentService &&
-        overlappingAppointmentsCount >= selectedService.concurrentServiceValue)
+        overlappingAppointmentsCount >=
+          selectedService.concurrentServiceValue)
     ) {
       return res.status(400).json({
-        message: "Horário já atingiu o limite de agendamentos simultâneos.",
+        message:
+          "Horário já atingiu o limite de agendamentos simultâneos.",
       });
     }
 
+    // ✅ Criando agendamento
     const appointment = new Appointment({
       clientName,
-      clientPhone,
+      clientPhone: telefoneNormalizado,
       veiculo,
       serviceName,
       price,
@@ -211,64 +248,10 @@ exports.bookAppointment = async (req, res) => {
       reminderWhatsapp,
       fotos,
       origin,
+      client: clienteCriado ? clienteCriado._id : null,
     });
 
     await appointment.save();
-    const formattedDate = formatDateForWhatsApp(date);
-    const sanitizedPhone = `55${clientPhone.replace(/\D/g, "")}`;
-    const whatsappBookingMessage = `Olá ${clientName}, o agendamento do(a) *${serviceName}* do(a) seu *${veiculo}* foi confirmado com sucesso para o dia *${formattedDate}* às *${startTime}*. Estamos esperando por você! 🚗✨`;
-
-    try {
-      const whatsappResponse = await fetch(
-        "https://gateway.apibrasil.io/api/v2/whatsapp/sendText",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            DeviceToken: "d98654e6-d47b-48a6-89d5-7cac993c371c",
-            Authorization:
-              "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2dhdGV3YXkuYXBpYnJhc2lsLmlvL2FwaS92Mi9hdXRoL3JlZ2lzdGVyIiwiaWF0IjoxNzQ2MjkzODEwLCJleHAiOjE3Nzc4Mjk4MTAsIm5iZiI6MTc0NjI5MzgxMCwianRpIjoiUmpxOUNqcTgxeEJCMjBXMSIsInN1YiI6IjE1MDQwIiwicHJ2IjoiMjNiZDVjODk0OWY2MDBhZGIzOWU3MDFjNDAwODcyZGI3YTU5NzZmNyJ9.VW_KwDX30rsXJBKn7KpR9cqSK1HIz9Wej1qyeaFqs3Y",
-          },
-          body: JSON.stringify({
-            number: sanitizedPhone,
-            text: whatsappBookingMessage,
-          }),
-        }
-      );
-
-      if (!whatsappResponse.ok) {
-        console.error(
-          "Erro ao enviar mensagem de confirmação no WhatsApp:",
-          await whatsappResponse.text()
-        );
-      }
-    } catch (whatsappError) {
-      console.error(
-        "Erro ao tentar enviar mensagem pelo WhatsApp:",
-        whatsappError
-      );
-    }
-
-    if (!selectedService.concurrentService) {
-      selectedService.availability = selectedService.availability.map((a) => {
-        if (a.day === capitalizedDay) {
-          const updatedHours = a.availableHours.filter((h) => {
-            return !(h.start === startTime && h.end === endTime);
-          });
-          return { ...a.toObject(), availableHours: updatedHours };
-        }
-        return a;
-      });
-
-      await Establishment.updateOne(
-        { _id: establishmentId, "services._id": serviceId },
-        {
-          $set: {
-            "services.$.availability": selectedService.availability,
-          },
-        }
-      );
-    }
 
     return res.status(201).json({
       message: "Agendamento realizado com sucesso!",
@@ -276,11 +259,22 @@ exports.bookAppointment = async (req, res) => {
     });
   } catch (error) {
     console.error("Erro ao agendar serviço:", error);
-    return res
-      .status(500)
-      .json({ message: "Erro ao agendar serviço.", error: error.message });
+
+    // 🔒 Tratamento de duplicidade do Mongo
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Cliente já cadastrado com esse telefone.",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Erro ao agendar serviço.",
+      error: error.message,
+    });
   }
 };
+
+
 
 exports.updateAppointmentStatus = async (req, res) => {
   try {

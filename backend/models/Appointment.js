@@ -8,6 +8,10 @@ const appointmentSchema = new mongoose.Schema({
   reminderWhatsapp: { type: Boolean, required: false, default: false },
   price: { type: Number, required: true },
   status: { type: String, required: true, default: "Agendado" },
+   client: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Client",
+  },
   service: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Service",
